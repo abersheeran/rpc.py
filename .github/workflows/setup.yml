@@ -1,0 +1,53 @@
+name: Build setup.py
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dephell
+        run: |
+          python -m pip install "pip<20"
+          python -m pip install --upgrade dephell[full]
+
+      - name: Build setup.py
+        run: |
+          dephell deps convert
+          rm -f pyproject.toml poetry.lock
+
+      - name: Push setup.py to branch `setup.py`.
+        run: |
+          remote_repo="https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git config http.sslVerify false
+          git config user.name "Automated Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git remote add publisher "${remote_repo}"
+          git show-ref # useful for debugging
+          git branch --verbose
+
+          # install lfs hooks
+          git lfs install
+
+          # publish any new files
+          git checkout -b setup.py
+          git add -A
+          timestamp=$(date -u)
+          git commit -m "Automated publish: ${timestamp} ${GITHUB_SHA}" || exit 0
+          git push --force publisher setup.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
