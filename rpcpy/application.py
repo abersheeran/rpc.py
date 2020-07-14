@@ -1,6 +1,5 @@
 import typing
 import inspect
-import traceback
 import logging
 
 from rpcpy.types import Environ, StartResponse, Scope, Receive, Send

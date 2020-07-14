@@ -35,7 +35,7 @@ class Client:
     def async_remote_call(self, func: Function) -> Function:
         if not self.is_async:
             raise TypeError(
-                "Asynchronous Client can only register asynchronous functions."
+                "Synchronization Client can only register synchronization functions."
             )
 
         @functools.wraps(func)
@@ -55,7 +55,7 @@ class Client:
     def sync_remote_call(self, func: Function) -> Function:
         if self.is_async:
             raise TypeError(
-                "Synchronization Client can only register synchronization functions."
+                "Asynchronous Client can only register asynchronous functions."
             )
 
         @functools.wraps(func)
