@@ -20,7 +20,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.6"
 python-multipart = "^0.0.5"
-httpx = "^0.13.3"   # for client and test
+httpx = {version = "^0.13.3", optional = true}  # for client and test
 uvicorn = "^0.11.5" # for serve ASGI/WSGI
 
 [tool.poetry.extras]
