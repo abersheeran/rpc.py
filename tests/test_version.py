@@ -1,4 +1,4 @@
-from example.version import VERSION, __version__
+from rpcpy.version import VERSION, __version__
 
 
 def test_version():

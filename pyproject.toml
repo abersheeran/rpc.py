@@ -19,6 +19,10 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
+httpx = "^0.13.3"
+typing-extensions = {version = "^3.7.4", python = "<3.8"}
+pydantic = {version = "^1.5.1", optional = true}
+python-multipart = "^0.0.5"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
