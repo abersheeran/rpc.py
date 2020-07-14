@@ -1,6 +1,7 @@
 import typing
 import inspect
 import traceback
+import logging
 
 from rpcpy.types import Environ, StartResponse, Scope, Receive, Send
 from rpcpy.serializers import BaseSerializer, JSONSerializer
@@ -13,12 +14,17 @@ Function = typing.TypeVar("Function")
 
 class RPC:
     def __init__(
-        self, *, prefix: str = "/", serializer: BaseSerializer = JSONSerializer()
+        self,
+        *,
+        prefix: str = "/",
+        serializer: BaseSerializer = JSONSerializer(),
+        logger: logging.Logger = logging.getLogger("rpcpy")
     ):
         self.async_callbacks = {}
         self.sync_callbacks = {}
         self.prefix = prefix
         self.serializer = serializer
+        self.logger = logger
 
     def register(self, func: Function) -> Function:
         if inspect.iscoroutinefunction(func):
@@ -45,16 +51,10 @@ class RPC:
             data = request.form
         assert isinstance(data, typing.Mapping)
 
-        try:
-            result = self.sync_callbacks[request.url.path[len(self.prefix) :]](**data)
-            status = 200
-        except Exception:
-            result = traceback.format_exc()
-            status = 500
-        print(result, status)
+        result = self.sync_callbacks[request.url.path[len(self.prefix) :]](**data)
+
         return WSGIResponse(
             self.serializer.encode(result),
-            status_code=status,
             headers={"serializer": self.serializer.name},
         )(environ, start_response)
 
@@ -75,17 +75,11 @@ class RPC:
             data = await request.form()
         assert isinstance(data, typing.Mapping)
 
-        try:
-            result = result = await self.async_callbacks[
-                request.path[len(self.prefix) : -1]
-            ](**data)
-            status = 200
-        except Exception:
-            result = traceback.format_exc()
-            status = 500
+        result = result = await self.async_callbacks[
+            request.url.path[len(self.prefix) :]
+        ](**data)
 
         return await ASGIResponse(
             self.serializer.encode(result),
-            status_code=status,
             headers={"serializer": self.serializer.name},
         )(scope, receive, send)

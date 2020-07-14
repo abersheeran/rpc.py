@@ -38,7 +38,7 @@ class JSONSerializer(BaseSerializer):
 
 
 class PickleSerializer(BaseSerializer):
-    name = f"pickle/{pickle.DEFAULT_PROTOCOL}"
+    name = "pickle"
 
     def encode(self, data: typing.Any) -> bytes:
         return pickle.dumps(data).encode("utf8")

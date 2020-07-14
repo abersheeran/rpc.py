@@ -1,4 +1,3 @@
-import ast
 import typing
 import inspect
 import functools
@@ -10,11 +9,6 @@ from rpcpy.serializers import BaseSerializer, JSONSerializer
 Function = typing.TypeVar("Function")
 
 
-class T(ast.NodeTransformer):
-    def visit_Ellipsis(self, node: Ellipsis) -> typing.Any:
-        ...
-
-
 class Client:
     def __init__(
         self,
@@ -22,7 +16,7 @@ class Client:
         *,
         base_url: str,
         prefix: str = "/",
-        serializer: BaseSerializer = JSONSerializer()
+        serializer: BaseSerializer = JSONSerializer(),
     ) -> None:
         assert prefix.startswith("/") and prefix.endswith("/")
         self.base_url = base_url.rstrip("/")
@@ -48,10 +42,11 @@ class Client:
         async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
             sig = inspect.signature(func)
             bound_values = sig.bind(*args, **kwargs)
-
+            url = self.base_url + self.prefix + func.__name__
             resp = await self.client.post(
-                self.prefix + func.__name__, json=dict(bound_values.arguments.items())
+                url, json=dict(bound_values.arguments.items())
             )  # type: httpx.Response
+            resp.raise_for_status()
             assert resp.headers.get("serializer") == self.serializer.name
             return self.serializer.decode(resp.content)
 
@@ -67,11 +62,11 @@ class Client:
         def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
             sig = inspect.signature(func)
             bound_values = sig.bind(*args, **kwargs)
-
+            url = self.base_url + self.prefix + func.__name__
             resp = self.client.post(
-                self.base_url + self.prefix + func.__name__,
-                json=dict(bound_values.arguments.items()),
+                url, json=dict(bound_values.arguments.items()),
             )  # type: httpx.Response
+            resp.raise_for_status()
             assert resp.headers.get("serializer") == self.serializer.name
             return self.serializer.decode(resp.content)
 
