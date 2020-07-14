@@ -14,12 +14,12 @@ app = RPC()
 
 
 @app.register
-def sayhi(name: str) -> str:
+async def sayhi(name: str) -> str:
     return f"hi {name}"
 
 
 if __name__ == "__main__":
-    uvicorn.run(app.wsgi, interface="wsgi", port=65432)
+    uvicorn.run(app.asgi, interface="asgi3", port=65432)
 ```
 
 Client side:
