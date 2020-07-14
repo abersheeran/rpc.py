@@ -15,12 +15,10 @@ class Client:
         client: httpx.Client,
         *,
         base_url: str,
-        prefix: str = "/",
         serializer: BaseSerializer = JSONSerializer(),
     ) -> None:
-        assert prefix.startswith("/") and prefix.endswith("/")
-        self.base_url = base_url.rstrip("/")
-        self.prefix = prefix
+        assert base_url.endswith("/"), "base_url must be end with '/'"
+        self.base_url = base_url
         self.serializer = serializer
         self.client = client
         self.is_async = isinstance(client, httpx.AsyncClient)
@@ -42,7 +40,7 @@ class Client:
         async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
             sig = inspect.signature(func)
             bound_values = sig.bind(*args, **kwargs)
-            url = self.base_url + self.prefix + func.__name__
+            url = self.base_url + func.__name__
             resp = await self.client.post(
                 url, json=dict(bound_values.arguments.items())
             )  # type: httpx.Response
@@ -62,7 +60,7 @@ class Client:
         def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
             sig = inspect.signature(func)
             bound_values = sig.bind(*args, **kwargs)
-            url = self.base_url + self.prefix + func.__name__
+            url = self.base_url + func.__name__
             resp = self.client.post(
                 url, json=dict(bound_values.arguments.items()),
             )  # type: httpx.Response

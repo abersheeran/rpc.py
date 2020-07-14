@@ -74,9 +74,9 @@ class RPC:
             data = await request.form()
         assert isinstance(data, typing.Mapping)
 
-        result = result = await self.async_callbacks[
-            request.url.path[len(self.prefix) :]
-        ](**data)
+        result = await self.async_callbacks[request.url.path[len(self.prefix) :]](
+            **data
+        )
 
         return await ASGIResponse(
             self.serializer.encode(result),

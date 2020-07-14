@@ -22,12 +22,12 @@ def app():
 
 @pytest.fixture
 def sync_client(app):
-    return Client(httpx.Client(app=app.wsgi), base_url="http://testserver")
+    return Client(httpx.Client(app=app.wsgi), base_url="http://testserver/")
 
 
 @pytest.fixture
 def async_client(app):
-    return Client(httpx.AsyncClient(app=app.asgi), base_url="http://testserver")
+    return Client(httpx.AsyncClient(app=app.asgi), base_url="http://testserver/")
 
 
 @pytest.mark.asyncio
