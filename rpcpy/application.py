@@ -1,6 +1,5 @@
 import typing
 import inspect
-import logging
 
 from rpcpy.types import Environ, StartResponse, Scope, Receive, Send
 from rpcpy.serializers import BaseSerializer, JSONSerializer
@@ -13,17 +12,12 @@ Function = typing.TypeVar("Function")
 
 class RPC:
     def __init__(
-        self,
-        *,
-        prefix: str = "/",
-        serializer: BaseSerializer = JSONSerializer(),
-        logger: logging.Logger = logging.getLogger("rpcpy")
+        self, *, prefix: str = "/", serializer: BaseSerializer = JSONSerializer(),
     ):
         self.async_callbacks = {}
         self.sync_callbacks = {}
         self.prefix = prefix
         self.serializer = serializer
-        self.logger = logger
 
     def register(self, func: Function) -> Function:
         if inspect.iscoroutinefunction(func):
