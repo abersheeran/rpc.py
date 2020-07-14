@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "setup.py"
+name = "rpcpy"
 version = "0.1.0"
 description = ""
 authors = ["abersheeran <me@abersheeran.com>"]
@@ -14,15 +14,17 @@ classifiers=[
 ]
 
 packages = [
-    { include = "example" },
+    { include = "rpcpy" },
 ]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-httpx = "^0.13.3"
-typing-extensions = {version = "^3.7.4", python = "<3.8"}
-pydantic = {version = "^1.5.1", optional = true}
 python-multipart = "^0.0.5"
+httpx = "^0.13.3"  # for client and test
+uvicorn = {version = "^0.11.5", optional = true}
+
+[tool.poetry.extras]
+uvicorn = ["uvicorn"]
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"

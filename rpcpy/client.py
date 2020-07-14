@@ -24,6 +24,7 @@ class Client:
         prefix: str = "/",
         serializer: BaseSerializer = JSONSerializer()
     ) -> None:
+        assert prefix.startswith("/") and prefix.endswith("/")
         self.base_url = base_url.rstrip("/")
         self.prefix = prefix
         self.serializer = serializer

@@ -19,15 +19,16 @@ def sayhi(name: str) -> str:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app.wsgi, port=65432)
+    uvicorn.run(app.wsgi, interface="wsgi", port=65432)
 ```
 
 Client side:
 
 ```python
-from rpcpy import Client
+import httpx
+from rpcpy.client import Client
 
-app = Client(host="localhost", port=65432)
+app = Client(httpx.Client(), base_url="http://127.0.0.1:65432")
 
 
 @app.remote_call

@@ -51,7 +51,7 @@ class RPC:
         except Exception:
             result = traceback.format_exc()
             status = 500
-
+        print(result, status)
         return WSGIResponse(
             self.serializer.encode(result),
             status_code=status,
