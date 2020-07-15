@@ -10,23 +10,47 @@ from rpcpy.wsgi import Request as WSGIRequest, Response as WSGIResponse
 Function = typing.TypeVar("Function")
 
 
-class RPC:
+class RPCMeta(type):
+    def __call__(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        mode = kwargs.get("mode", "WSGI")
+        assert mode in ("WSGI", "ASGI"), "mode must be in ('WSGI', 'ASGI')"
+
+        if cls.__name__ == "RPC":
+            if mode == "WSGI":
+                return WSGIRPC(*args, **kwargs)
+
+            if mode == "ASGI":
+                return ASGIRPC(*args, **kwargs)
+
+        return super().__call__(*args, **kwargs)
+
+
+class RPC(metaclass=RPCMeta):
     def __init__(
-        self, *, prefix: str = "/", serializer: BaseSerializer = JSONSerializer(),
+        self,
+        *,
+        prefix: str = "/",
+        mode: str = "WSGI",
+        serializer: BaseSerializer = JSONSerializer(),
     ):
-        self.async_callbacks = {}
-        self.sync_callbacks = {}
+        assert mode in ("WSGI", "ASGI"), "mode must be in ('WSGI', 'ASGI')"
+        self.callbacks = {}
         self.prefix = prefix
         self.serializer = serializer
 
     def register(self, func: Function) -> Function:
-        if inspect.iscoroutinefunction(func):
-            self.async_callbacks[func.__name__] = func
-        else:
-            self.sync_callbacks[func.__name__] = func
+        self.callbacks[func.__name__] = func
         return func
 
-    def wsgi(
+
+class WSGIRPC(RPC):
+    def register(self, func: Function) -> Function:
+        if inspect.iscoroutinefunction(func):
+            raise TypeError("WSGI mode can only register synchronization functions.")
+        self.callbacks[func.__name__] = func
+        return func
+
+    def __call__(
         self, environ: Environ, start_response: StartResponse
     ) -> typing.Iterable[bytes]:
         request = WSGIRequest(environ)
@@ -44,14 +68,22 @@ class RPC:
             data = request.form
         assert isinstance(data, typing.Mapping)
 
-        result = self.sync_callbacks[request.url.path[len(self.prefix) :]](**data)
+        result = self.callbacks[request.url.path[len(self.prefix) :]](**data)
 
         return WSGIResponse(
             self.serializer.encode(result),
             headers={"serializer": self.serializer.name},
         )(environ, start_response)
 
-    async def asgi(self, scope: Scope, receive: Receive, send: Send) -> None:
+
+class ASGIRPC(RPC):
+    def register(self, func: Function) -> Function:
+        if not inspect.iscoroutinefunction(func):
+            raise TypeError("WSGI mode can only register synchronization functions.")
+        self.callbacks[func.__name__] = func
+        return func
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         request = ASGIRequest(scope, receive, send)
 
         if request.method != "POST":
@@ -68,9 +100,7 @@ class RPC:
             data = await request.form()
         assert isinstance(data, typing.Mapping)
 
-        result = await self.async_callbacks[request.url.path[len(self.prefix) :]](
-            **data
-        )
+        result = await self.callbacks[request.url.path[len(self.prefix) :]](**data)
 
         return await ASGIResponse(
             self.serializer.encode(result),

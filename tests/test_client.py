@@ -6,36 +6,43 @@ from rpcpy.client import Client
 
 
 @pytest.fixture
-def app():
+def wsgi_app():
     app = RPC()
 
     @app.register
-    def sync_sayhi(name: str) -> str:
-        return f"hi {name}"
-
-    @app.register
-    async def async_sayhi(name: str) -> str:
+    def sayhi(name: str) -> str:
         return f"hi {name}"
 
     return app
 
 
 @pytest.fixture
-def sync_client(app) -> Client:
-    return Client(httpx.Client(app=app.wsgi), base_url="http://testserver/")
+def asgi_app():
+    app = RPC(mode="ASGI")
+
+    @app.register
+    async def sayhi(name: str) -> str:
+        return f"hi {name}"
+
+    return app
 
 
 @pytest.fixture
-def async_client(app) -> Client:
-    return Client(httpx.AsyncClient(app=app.asgi), base_url="http://testserver/")
+def sync_client(wsgi_app) -> Client:
+    return Client(httpx.Client(app=wsgi_app), base_url="http://testserver/")
+
+
+@pytest.fixture
+def async_client(asgi_app) -> Client:
+    return Client(httpx.AsyncClient(app=asgi_app), base_url="http://testserver/")
 
 
 def test_sync_client(sync_client):
     @sync_client.remote_call
-    def sync_sayhi(name: str) -> str:
+    def sayhi(name: str) -> str:
         ...
 
-    assert sync_sayhi("rpc.py") == "hi rpc.py"
+    assert sayhi("rpc.py") == "hi rpc.py"
 
     with pytest.raises(
         TypeError,
@@ -50,10 +57,10 @@ def test_sync_client(sync_client):
 @pytest.mark.asyncio
 async def test_async_client(async_client):
     @async_client.remote_call
-    async def async_sayhi(name: str) -> str:
+    async def sayhi(name: str) -> str:
         ...
 
-    assert await async_sayhi("rpc.py") == "hi rpc.py"
+    assert await sayhi("rpc.py") == "hi rpc.py"
 
     with pytest.raises(
         TypeError,
