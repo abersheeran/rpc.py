@@ -41,7 +41,7 @@ class PickleSerializer(BaseSerializer):
     name = "pickle"
 
     def encode(self, data: typing.Any) -> bytes:
-        return pickle.dumps(data).encode("utf8")
+        return pickle.dumps(data)
 
     def decode(self, data: bytes) -> typing.Any:
-        return pickle.loads(data.decode("utf8"))
+        return pickle.loads(data)

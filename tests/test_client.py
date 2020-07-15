@@ -21,13 +21,30 @@ def app():
 
 
 @pytest.fixture
-def sync_client(app):
+def sync_client(app) -> Client:
     return Client(httpx.Client(app=app.wsgi), base_url="http://testserver/")
 
 
 @pytest.fixture
-def async_client(app):
+def async_client(app) -> Client:
     return Client(httpx.AsyncClient(app=app.asgi), base_url="http://testserver/")
+
+
+def test_sync_client(sync_client):
+    @sync_client.remote_call
+    def sync_sayhi(name: str) -> str:
+        ...
+
+    assert sync_sayhi("rpc.py") == "hi rpc.py"
+
+    with pytest.raises(
+        TypeError,
+        match="Synchronization Client can only register synchronization functions.",
+    ):
+
+        @sync_client.remote_call
+        async def sayhi(name: str) -> str:
+            ...
 
 
 @pytest.mark.asyncio
