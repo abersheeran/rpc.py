@@ -4,6 +4,16 @@ An easy-to-use and powerful RPC framework. Base WSGI & ASGI.
 
 Based on WSGI/ASGI, you can deploy the rpc.py server to any server and use http2 to get better performance.
 
+## Install
+
+```bash
+pip install rpcpy
+```
+
+```bash
+pip install git+https://github.com/abersheeran/rpc.py@setup.py
+```
+
 ## Usage
 
 ### Server side:
