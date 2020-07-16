@@ -10,6 +10,10 @@ def wsgi_app():
     app = RPC()
 
     @app.register
+    def none() -> None:
+        return
+
+    @app.register
     def sayhi(name: str) -> str:
         return f"hi {name}"
 
@@ -19,6 +23,10 @@ def wsgi_app():
 @pytest.fixture
 def asgi_app():
     app = RPC(mode="ASGI")
+
+    @app.register
+    async def none() -> None:
+        return
 
     @app.register
     async def sayhi(name: str) -> str:
@@ -70,3 +78,26 @@ async def test_async_client(async_client):
         @async_client.remote_call
         def sayhi(name: str) -> str:
             ...
+
+
+def test_none(sync_client):
+    @sync_client.remote_call
+    def none() -> None:
+        ...
+
+    assert none() is None
+
+    with pytest.raises(TypeError):
+        none("hi")
+
+
+@pytest.mark.asyncio
+async def test_async_none(async_client):
+    @async_client.remote_call
+    async def none() -> None:
+        ...
+
+    assert await none() is None
+
+    with pytest.raises(TypeError):
+        await none("hi")
