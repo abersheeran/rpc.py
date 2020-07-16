@@ -6,6 +6,7 @@ from rpcpy.serializers import BaseSerializer, JSONSerializer
 from rpcpy.asgi import Request as ASGIRequest, Response as ASGIResponse
 from rpcpy.wsgi import Request as WSGIRequest, Response as WSGIResponse
 
+__all__ = ["RPC"]
 
 Function = typing.TypeVar("Function")
 

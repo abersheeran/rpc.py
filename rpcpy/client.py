@@ -6,6 +6,8 @@ import httpx
 
 from rpcpy.serializers import BaseSerializer, JSONSerializer
 
+__all__ = ["Client"]
+
 Function = typing.TypeVar("Function")
 
 
