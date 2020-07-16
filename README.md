@@ -9,7 +9,7 @@ Based on WSGI/ASGI, you can deploy the rpc.py server to any server and use http2
 Install from PyPi:
 
 ```bash
-pip install rpcpy
+pip install rpc.py
 ```
 
 Install from github:
