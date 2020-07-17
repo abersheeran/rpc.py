@@ -1,5 +1,4 @@
 import json
-import http
 import typing
 from http import HTTPStatus
 from collections.abc import Mapping
@@ -161,45 +160,6 @@ class Response:
                 for key, value in self.raw_headers
             ]
         )
-
-    def set_cookie(
-        self,
-        key: str,
-        value: str = "",
-        max_age: int = None,
-        expires: int = None,
-        path: str = "/",
-        domain: str = None,
-        secure: bool = False,
-        httponly: bool = False,
-        samesite: str = "lax",
-    ) -> None:
-        cookie: http.cookies.SimpleCookie = http.cookies.SimpleCookie()
-        cookie[key] = value
-        if max_age is not None:
-            cookie[key]["max-age"] = max_age
-        if expires is not None:
-            cookie[key]["expires"] = expires
-        if path is not None:
-            cookie[key]["path"] = path
-        if domain is not None:
-            cookie[key]["domain"] = domain
-        if secure:
-            cookie[key]["secure"] = True
-        if httponly:
-            cookie[key]["httponly"] = True
-        if samesite is not None:
-            assert samesite.lower() in [
-                "strict",
-                "lax",
-                "none",
-            ], "samesite must be either 'strict', 'lax' or 'none'"
-            cookie[key]["samesite"] = samesite
-        cookie_val = cookie.output(header="").strip()
-        self.raw_headers.append(("set-cookie", cookie_val))
-
-    def delete_cookie(self, key: str, path: str = "/", domain: str = None) -> None:
-        self.set_cookie(key, expires=0, max_age=0, path=path, domain=domain)
 
     def __call__(
         self, environ: Environ, start_response: StartResponse
