@@ -1,6 +1,7 @@
 import typing
 import inspect
 import functools
+from types import FunctionType
 
 import httpx
 
@@ -8,13 +9,13 @@ from rpcpy.serializers import BaseSerializer, JSONSerializer
 
 __all__ = ["Client"]
 
-Function = typing.TypeVar("Function")
+Function = typing.TypeVar("Function", FunctionType, FunctionType)
 
 
 class Client:
     def __init__(
         self,
-        client: httpx.Client,
+        client: typing.Union[httpx.Client, httpx.AsyncClient],
         *,
         base_url: str,
         serializer: BaseSerializer = JSONSerializer(),
@@ -43,14 +44,14 @@ class Client:
             sig = inspect.signature(func)
             bound_values = sig.bind(*args, **kwargs)
             url = self.base_url + func.__name__
-            resp = await self.client.post(
+            resp: httpx.Response = await self.client.post(  # type: ignore
                 url, json=dict(bound_values.arguments.items())
-            )  # type: httpx.Response
+            )
             resp.raise_for_status()
             assert resp.headers.get("serializer") == self.serializer.name
             return self.serializer.decode(resp.content)
 
-        return wrapper
+        return typing.cast(Function, wrapper)
 
     def sync_remote_call(self, func: Function) -> Function:
         if self.is_async:
@@ -63,11 +64,11 @@ class Client:
             sig = inspect.signature(func)
             bound_values = sig.bind(*args, **kwargs)
             url = self.base_url + func.__name__
-            resp = self.client.post(
+            resp: httpx.Response = self.client.post(  # type: ignore
                 url, json=dict(bound_values.arguments.items()),
-            )  # type: httpx.Response
+            )
             resp.raise_for_status()
             assert resp.headers.get("serializer") == self.serializer.name
             return self.serializer.decode(resp.content)
 
-        return wrapper
+        return typing.cast(Function, wrapper)

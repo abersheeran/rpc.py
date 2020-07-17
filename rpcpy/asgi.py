@@ -207,7 +207,7 @@ class Response:
         httponly: bool = False,
         samesite: str = "lax",
     ) -> None:
-        cookie = http.cookies.SimpleCookie()
+        cookie: http.cookies.SimpleCookie = http.cookies.SimpleCookie()
         cookie[key] = value
         if max_age is not None:
             cookie[key]["max-age"] = max_age

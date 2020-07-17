@@ -21,7 +21,7 @@ def cookie_parser(cookie_string: str) -> typing.Dict[str, str]:
         key, val = key.strip(), val.strip()
         if key or val:
             # unquote using Python's algorithm.
-            cookie_dict[key] = http_cookies._unquote(val)
+            cookie_dict[key] = http_cookies._unquote(val)  # type: ignore
     return cookie_dict
 
 

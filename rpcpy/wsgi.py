@@ -66,8 +66,8 @@ class Request(Mapping):
         return self.enviorn["REQUEST_METHOD"]
 
     def stream(self) -> typing.Generator[bytes, None, None]:
-        if hasattr(self, "_body"):
-            yield self._body
+        if "body" in self.__dict__:
+            yield self.body
             return
 
         while True:
@@ -155,7 +155,12 @@ class Response:
 
     @cached_property
     def headers(self) -> MutableHeaders:
-        return MutableHeaders(raw=self.raw_headers)
+        return MutableHeaders(
+            raw=[
+                (key.encode("latin-1"), value.encode("latin-1"))
+                for key, value in self.raw_headers
+            ]
+        )
 
     def set_cookie(
         self,
@@ -169,7 +174,7 @@ class Response:
         httponly: bool = False,
         samesite: str = "lax",
     ) -> None:
-        cookie = http.cookies.SimpleCookie()
+        cookie: http.cookies.SimpleCookie = http.cookies.SimpleCookie()
         cookie[key] = value
         if max_age is not None:
             cookie[key]["max-age"] = max_age
@@ -202,5 +207,6 @@ class Response:
         start_response(
             f"{self.status_code} {HTTPStatus(self.status_code).phrase}",
             self.raw_headers,
+            None,
         )
         yield self.body

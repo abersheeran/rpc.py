@@ -1,5 +1,6 @@
 import typing
 import inspect
+from types import FunctionType
 
 from rpcpy.types import Environ, StartResponse, Scope, Receive, Send
 from rpcpy.serializers import BaseSerializer, JSONSerializer
@@ -8,7 +9,7 @@ from rpcpy.wsgi import Request as WSGIRequest, Response as WSGIResponse
 
 __all__ = ["RPC"]
 
-Function = typing.TypeVar("Function")
+Function = typing.TypeVar("Function", FunctionType, FunctionType)
 
 
 class RPCMeta(type):
@@ -35,7 +36,7 @@ class RPC(metaclass=RPCMeta):
         serializer: BaseSerializer = JSONSerializer(),
     ):
         assert mode in ("WSGI", "ASGI"), "mode must be in ('WSGI', 'ASGI')"
-        self.callbacks = {}
+        self.callbacks: typing.Dict[str, typing.Callable] = {}
         self.prefix = prefix
         self.serializer = serializer
 
@@ -92,7 +93,7 @@ class ASGIRPC(RPC):
                 status_code = 404
             else:
                 status_code = 405
-            return ASGIResponse(status_code=status_code)(scope, receive, send)
+            return await ASGIResponse(status_code=status_code)(scope, receive, send)
 
         content_type = request.headers["content-type"]
         if content_type == "application/json":

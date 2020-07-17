@@ -38,11 +38,11 @@ class URL:
                     if key == b"host":
                         host_header = value.decode("latin-1")
                         break
-            else:  # environ
+            elif environ is not None:  # environ
                 scheme = environ["wsgi.url_scheme"]
                 server = (environ["SERVER_NAME"], environ["SERVER_PORT"])
                 path = environ.get("SCRIPT_NAME", "") + environ.get("PATH_INFO", "")
-                query_string = environ.get("QUERY_STRING").encode("ascii")
+                query_string = environ.get("QUERY_STRING", "").encode("ascii")
                 host_header = environ.get("HTTP_HOST", None)
 
             if host_header is not None:
@@ -389,7 +389,7 @@ class UploadFile:
         return await asyncio.get_event_loop().run_in_executor(None, self.read, size)
 
     def seek(self, offset: int) -> None:
-        self.flie.seek(offset)
+        self.file.seek(offset)
 
     async def aseek(self, offset: int) -> None:
         if self.in_memory:
