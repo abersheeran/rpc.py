@@ -18,7 +18,7 @@ def wsgi_app():
         return f"hi {name}"
 
     @app.register
-    def yield_data(max_num: int) -> int:
+    def yield_data(max_num: int):
         for i in range(max_num):
             yield i
 
@@ -38,7 +38,7 @@ def asgi_app():
         return f"hi {name}"
 
     @app.register
-    async def yield_data(max_num: int) -> int:
+    async def yield_data(max_num: int):
         for i in range(max_num):
             yield i
 
@@ -72,7 +72,7 @@ def test_sync_client(sync_client):
             ...
 
     @sync_client.remote_call
-    def yield_data(max_num: int) -> int:
+    def yield_data(max_num: int):
         yield
 
     index = 0
@@ -99,7 +99,7 @@ async def test_async_client(async_client):
             ...
 
     @async_client.remote_call
-    async def yield_data(max_num: int) -> int:
+    async def yield_data(max_num: int):
         yield
 
     index = 0

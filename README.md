@@ -40,7 +40,7 @@ async def sayhi(name: str) -> str:
 
 
 @app.register
-async def yield_data(max_num: int) -> int:
+async def yield_data(max_num: int):
     for i in range(max_num):
         yield i
 
@@ -69,7 +69,7 @@ def sayhi(name: str) -> str:
 
 
 @app.register
-def yield_data(max_num: int) -> int:
+def yield_data(max_num: int):
     for i in range(max_num):
         yield i
 
@@ -98,7 +98,7 @@ def sayhi(name: str) -> str:
 
 
 @app.remote_call
-def yield_data(max_num: int) -> int:
+def yield_data(max_num: int):
     yield
 ```
 
@@ -122,6 +122,6 @@ async def sayhi(name: str) -> str:
 
 
 @app.remote_call
-async def yield_data(max_num: int) -> int:
+async def yield_data(max_num: int):
     yield
 ```
