@@ -60,7 +60,10 @@ class Client:
                     "POST", url, json=dict(bound_values.arguments.items())
                 ) as resp:  # type: httpx.Response
                     serializer = get_serializer(resp.headers)
-                    async for line in resp.aiter_lines():
+                    # I don't know how to solve this error:
+                    # "AsyncIterator[str]" has no attribute "__iter__"; maybe "__aiter__"? (not iterable)
+                    # So, mark `type: ignore`.
+                    async for line in resp.aiter_lines():  # type: ignore
                         if line.startswith("data:"):
                             data = line.split(":", maxsplit=1)[1]
                             yield serializer.decode(b64decode(data.encode("ascii")))

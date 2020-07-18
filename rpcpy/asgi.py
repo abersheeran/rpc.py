@@ -230,10 +230,10 @@ class EventResponse(Response):
         ping_interval: int = 3,
     ) -> None:
 
-        headers = dict(
-            headers, **{"Cache-Control": "no-cache", "Connection": "keep-alive"}
-        )
-        super().__init__(None, status_code, headers)
+        _headers = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        if headers:
+            _headers.update(headers)
+        super().__init__(None, status_code, _headers)
         self.generator = generator
         self.ping_interval = ping_interval
 

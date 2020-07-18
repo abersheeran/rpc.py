@@ -200,10 +200,10 @@ class EventResponse(Response):
         ping_interval: int = 3,
     ) -> None:
 
-        headers = dict(
-            headers, **{"Cache-Control": "no-cache", "Connection": "keep-alive"}
-        )
-        super().__init__(None, status_code, headers)
+        _headers = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        if headers:
+            _headers.update(headers)
+        super().__init__(None, status_code, _headers)
         self.generator = generator
         self.ping_interval = ping_interval
         self.queue: typing.List[str] = []
@@ -219,13 +219,12 @@ class EventResponse(Response):
         )
 
         self.thread_pool.submit(
-            wait(
-                (
-                    self.thread_pool.submit(self.send_event),
-                    self.thread_pool.submit(self.keep_alive),
-                ),
-                return_when=FIRST_COMPLETED,
-            )
+            wait,
+            (
+                self.thread_pool.submit(self.send_event),
+                self.thread_pool.submit(self.keep_alive),
+            ),
+            return_when=FIRST_COMPLETED,
         )
 
         while self.has_more_data or self.queue:
