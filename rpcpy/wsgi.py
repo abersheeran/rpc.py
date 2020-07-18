@@ -1,15 +1,23 @@
 import json
+import time
 import typing
 from http import HTTPStatus
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+
+from multipart.multipart import parse_options_header
 
 from rpcpy.types import Environ, StartResponse
 from rpcpy.utils import cookie_parser, cached_property
-
-from .datastructures import URL, FormData, Headers, QueryParams, State, MutableHeaders
-from .formparsers import FormParser, MultiPartParser
-
-from multipart.multipart import parse_options_header
+from rpcpy.datastructures import (
+    URL,
+    FormData,
+    Headers,
+    QueryParams,
+    State,
+    MutableHeaders,
+)
+from rpcpy.formparsers import FormParser, MultiPartParser
 
 __all__ = ["Request", "Response"]
 
@@ -170,3 +178,65 @@ class Response:
             None,
         )
         yield self.body
+
+
+class EventResponse(Response):
+    """
+    Server send event
+
+    https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+    """
+
+    media_type = "text/event-stream"
+
+    thread_pool = ThreadPoolExecutor(max_workers=10)
+
+    def __init__(
+        self,
+        generator: typing.Generator[str, None, None],
+        status_code: int = 200,
+        headers: dict = None,
+        *,
+        ping_interval: int = 3,
+    ) -> None:
+
+        headers = dict(
+            headers, **{"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        )
+        super().__init__(None, status_code, headers)
+        self.generator = generator
+        self.ping_interval = ping_interval
+        self.queue: typing.List[str] = []
+        self.has_more_data = True
+
+    def __call__(
+        self, environ: Environ, start_response: StartResponse
+    ) -> typing.Iterable[bytes]:
+        start_response(
+            f"{self.status_code} {HTTPStatus(self.status_code).phrase}",
+            self.raw_headers,
+            None,
+        )
+
+        self.thread_pool.submit(
+            wait(
+                (
+                    self.thread_pool.submit(self.send_event),
+                    self.thread_pool.submit(self.keep_alive),
+                ),
+                return_when=FIRST_COMPLETED,
+            )
+        )
+
+        while self.has_more_data or self.queue:
+            yield self.queue.pop(0).encode("utf8")
+
+    def send_event(self) -> None:
+        for chunk in self.generator:
+            self.queue.append(f"data: {chunk.strip()}\r\n\r\n")
+        self.has_more_data = False
+
+    def keep_alive(self) -> None:
+        while self.has_more_data:
+            time.sleep(self.ping_interval)
+            self.queue.append(": ping\r\n\r\n")

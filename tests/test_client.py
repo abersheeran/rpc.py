@@ -17,6 +17,11 @@ def wsgi_app():
     def sayhi(name: str) -> str:
         return f"hi {name}"
 
+    @app.register
+    def yield_data(max_num: int) -> int:
+        for i in range(max_num):
+            yield i
+
     return app
 
 
@@ -31,6 +36,11 @@ def asgi_app():
     @app.register
     async def sayhi(name: str) -> str:
         return f"hi {name}"
+
+    @app.register
+    async def yield_data(max_num: int) -> int:
+        for i in range(max_num):
+            yield i
 
     return app
 
@@ -61,6 +71,15 @@ def test_sync_client(sync_client):
         async def sayhi(name: str) -> str:
             ...
 
+    @sync_client.remote_call
+    def yield_data(max_num: int) -> int:
+        yield
+
+    index = 0
+    for i in yield_data(10):
+        assert index == i
+        index += 1
+
 
 @pytest.mark.asyncio
 async def test_async_client(async_client):
@@ -78,6 +97,15 @@ async def test_async_client(async_client):
         @async_client.remote_call
         def sayhi(name: str) -> str:
             ...
+
+    @async_client.remote_call
+    async def yield_data(max_num: int) -> int:
+        yield
+
+    index = 0
+    async for i in yield_data(10):
+        assert index == i
+        index += 1
 
 
 def test_none(sync_client):

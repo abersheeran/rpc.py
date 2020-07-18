@@ -30,8 +30,19 @@ app = RPC(mode="ASGI")
 
 
 @app.register
+async def none() -> None:
+    return
+
+
+@app.register
 async def sayhi(name: str) -> str:
     return f"hi {name}"
+
+
+@app.register
+async def yield_data(max_num: int) -> int:
+    for i in range(max_num):
+        yield i
 
 
 if __name__ == "__main__":
@@ -44,12 +55,23 @@ OR
 import uvicorn
 from rpcpy import RPC
 
-app = RPC(mode="WSGI")
+app = RPC()
+
+
+@app.register
+def none() -> None:
+    return
 
 
 @app.register
 def sayhi(name: str) -> str:
     return f"hi {name}"
+
+
+@app.register
+def yield_data(max_num: int) -> int:
+    for i in range(max_num):
+        yield i
 
 
 if __name__ == "__main__":
@@ -66,12 +88,18 @@ app = Client(httpx.Client(), base_url="http://127.0.0.1:65432/")
 
 
 @app.remote_call
+def none() -> None:
+    ...
+
+
+@app.remote_call
 def sayhi(name: str) -> str:
     ...
 
 
-if __name__ == "__main__":
-    print(sayhi("rpc.py"))
+@app.remote_call
+def yield_data(max_num: int) -> int:
+    yield
 ```
 
 OR
@@ -84,11 +112,16 @@ app = Client(httpx.AsyncClient(), base_url="http://127.0.0.1:65432/")
 
 
 @app.remote_call
+async def none() -> None:
+    ...
+
+
+@app.remote_call
 async def sayhi(name: str) -> str:
     ...
 
 
-if __name__ == "__main__":
-    import asyncio
-    print(asyncio.get_event_loop().run_until_complete(sayhi("rpc.py")))
+@app.remote_call
+async def yield_data(max_num: int) -> int:
+    yield
 ```

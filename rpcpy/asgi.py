@@ -1,14 +1,21 @@
 import json
 import typing
+import asyncio
 from collections.abc import Mapping
+
+from multipart.multipart import parse_options_header
 
 from rpcpy.types import Message, Receive, Scope, Send
 from rpcpy.utils import cookie_parser, cached_property
-
-from .datastructures import URL, FormData, Headers, QueryParams, State, MutableHeaders
-from .formparsers import AsyncFormParser, AsyncMultiPartParser
-
-from multipart.multipart import parse_options_header
+from rpcpy.datastructures import (
+    URL,
+    FormData,
+    Headers,
+    QueryParams,
+    State,
+    MutableHeaders,
+)
+from rpcpy.formparsers import AsyncFormParser, AsyncMultiPartParser
 
 
 __all__ = ["Request", "Response"]
@@ -203,3 +210,67 @@ class Response:
             }
         )
         await send({"type": "http.response.body", "body": self.body})
+
+
+class EventResponse(Response):
+    """
+    Server send event
+
+    https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+    """
+
+    media_type = "text/event-stream"
+
+    def __init__(
+        self,
+        generator: typing.AsyncGenerator[str, None],
+        status_code: int = 200,
+        headers: dict = None,
+        *,
+        ping_interval: int = 3,
+    ) -> None:
+
+        headers = dict(
+            headers, **{"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        )
+        super().__init__(None, status_code, headers)
+        self.generator = generator
+        self.ping_interval = ping_interval
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": self.status_code,
+                "headers": self.raw_headers,
+            }
+        )
+
+        done, pending = await asyncio.wait(
+            (self.keep_alive(send), self.send_event(send)),
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        [task.cancel() for task in pending]
+        [task.result() for task in done]
+        await send({"type": "http.response.body", "body": b""})
+
+    async def send_event(self, send: Send) -> None:
+        async for chunk in self.generator:
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": f"data: {chunk.strip()}\r\n\r\n".encode("utf8"),
+                    "more_body": True,
+                }
+            )
+
+    async def keep_alive(self, send: Send) -> None:
+        while True:
+            await asyncio.sleep(self.ping_interval)
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": ": ping\r\n\r\n".encode("utf8"),
+                    "more_body": True,
+                }
+            )

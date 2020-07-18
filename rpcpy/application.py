@@ -1,11 +1,20 @@
 import typing
 import inspect
+from base64 import b64encode
 from types import FunctionType
 
 from rpcpy.types import Environ, StartResponse, Scope, Receive, Send
 from rpcpy.serializers import BaseSerializer, JSONSerializer
-from rpcpy.asgi import Request as ASGIRequest, Response as ASGIResponse
-from rpcpy.wsgi import Request as WSGIRequest, Response as WSGIResponse
+from rpcpy.asgi import (
+    Request as ASGIRequest,
+    Response as ASGIResponse,
+    EventResponse as ASGIEventResponse,
+)
+from rpcpy.wsgi import (
+    Request as WSGIRequest,
+    Response as WSGIResponse,
+    EventResponse as WSGIEventResponse,
+)
 
 __all__ = ["RPC"]
 
@@ -47,21 +56,23 @@ class RPC(metaclass=RPCMeta):
 
 class WSGIRPC(RPC):
     def register(self, func: Function) -> Function:
-        if inspect.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
             raise TypeError("WSGI mode can only register synchronization functions.")
         self.callbacks[func.__name__] = func
         return func
+
+    def create_generator(
+        self, generator: typing.Generator
+    ) -> typing.Generator[str, None, None]:
+        for data in generator:
+            yield b64encode(self.serializer.encode(data)).decode("ascii")
 
     def __call__(
         self, environ: Environ, start_response: StartResponse
     ) -> typing.Iterable[bytes]:
         request = WSGIRequest(environ)
         if request.method != "POST":
-            if request.method in ("GET", "HEAD"):
-                status_code = 404
-            else:
-                status_code = 405
-            return WSGIResponse(status_code=status_code)(environ, start_response)
+            return WSGIResponse(status_code=405)(environ, start_response)
 
         content_type = request.headers["content-type"]
         if content_type == "application/json":
@@ -72,6 +83,12 @@ class WSGIRPC(RPC):
 
         result = self.callbacks[request.url.path[len(self.prefix) :]](**data)
 
+        if inspect.isgenerator(result):
+            return WSGIEventResponse(
+                self.create_generator(result),
+                headers={"serializer": self.serializer.name},
+            )(environ, start_response)
+
         return WSGIResponse(
             self.serializer.encode(result),
             headers={"serializer": self.serializer.name},
@@ -80,20 +97,22 @@ class WSGIRPC(RPC):
 
 class ASGIRPC(RPC):
     def register(self, func: Function) -> Function:
-        if not inspect.iscoroutinefunction(func):
-            raise TypeError("WSGI mode can only register synchronization functions.")
+        if not (inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)):
+            raise TypeError("ASGI mode can only register asynchronous functions.")
         self.callbacks[func.__name__] = func
         return func
+
+    async def create_generator(
+        self, generator: typing.AsyncGenerator
+    ) -> typing.AsyncGenerator[str, None]:
+        async for data in generator:
+            yield b64encode(self.serializer.encode(data)).decode("ascii")
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         request = ASGIRequest(scope, receive, send)
 
         if request.method != "POST":
-            if request.method in ("GET", "HEAD"):
-                status_code = 404
-            else:
-                status_code = 405
-            return await ASGIResponse(status_code=status_code)(scope, receive, send)
+            return await ASGIResponse(status_code=405)(scope, receive, send)
 
         content_type = request.headers["content-type"]
         if content_type == "application/json":
@@ -102,9 +121,15 @@ class ASGIRPC(RPC):
             data = await request.form()
         assert isinstance(data, typing.Mapping)
 
-        result = await self.callbacks[request.url.path[len(self.prefix) :]](**data)
+        result = self.callbacks[request.url.path[len(self.prefix) :]](**data)
+
+        if inspect.isasyncgen(result):
+            return await ASGIEventResponse(
+                self.create_generator(result),
+                headers={"serializer": self.serializer.name},
+            )(scope, receive, send)
 
         return await ASGIResponse(
-            self.serializer.encode(result),
+            self.serializer.encode(await result),
             headers={"serializer": self.serializer.name},
         )(scope, receive, send)

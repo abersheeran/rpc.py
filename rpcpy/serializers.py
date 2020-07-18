@@ -3,6 +3,8 @@ import pickle
 import typing
 from abc import ABCMeta, abstractmethod
 
+from rpcpy.exceptions import ServerImplementationError
+
 
 class BaseSerializer(metaclass=ABCMeta):
     """
@@ -45,3 +47,21 @@ class PickleSerializer(BaseSerializer):
 
     def decode(self, data: bytes) -> typing.Any:
         return pickle.loads(data)
+
+
+SERIALIZERS = {
+    JSONSerializer.name: JSONSerializer(),
+    PickleSerializer.name: PickleSerializer(),
+}
+
+
+def get_serializer(headers: typing.Mapping) -> BaseSerializer:
+    """
+    parse header and try find serializer
+    """
+    if "serializer" not in headers:
+        raise ServerImplementationError("Name `serializer` not in resp.headers.")
+    serializer_name = headers["serializer"]
+    if serializer_name not in SERIALIZERS:
+        raise ServerImplementationError(f"Serializer `{serializer_name}` not found.")
+    return SERIALIZERS[serializer_name]
