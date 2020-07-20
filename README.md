@@ -146,4 +146,4 @@ RPC(serializer=PickleSerializer())
 
 Currently, function parameters must be serializable by `json`.
 
-In the next version, a custom serializer will be introduced for function parameters.
+In `v0.3`, a custom serializer will be introduced for function parameters.
