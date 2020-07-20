@@ -125,3 +125,25 @@ async def sayhi(name: str) -> str:
 async def yield_data(max_num: int):
     yield
 ```
+
+### Sub-route
+
+If you need to deploy the rpc.py server under `example.com/sub-route/*`, you need to set `RPC(prefix="/sub-route/")` and modify the `Client(base_path=https://example.com/sub-route/)`.
+
+### Serialization of results
+
+Currently supports two serializers, JSON and Pickle. JSON is used by default.
+
+```python
+from rpcpy.serializers import JSONSerializer, PickleSerializer
+
+RPC(serializer=JSONSerializer())
+# or
+RPC(serializer=PickleSerializer())
+```
+
+## Limitations
+
+Currently, function parameters must be serializable by `json`.
+
+In the next version, a custom serializer will be introduced for function parameters.

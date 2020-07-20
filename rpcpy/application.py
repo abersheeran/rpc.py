@@ -46,7 +46,7 @@ class RPC(metaclass=RPCMeta):
     ):
         assert mode in ("WSGI", "ASGI"), "mode must be in ('WSGI', 'ASGI')"
         self.callbacks: typing.Dict[str, typing.Callable] = {}
-        self.prefix = prefix
+        self.prefix = "/" + prefix.strip("/") + "/"
         self.serializer = serializer
 
     def register(self, func: Function) -> Function:
