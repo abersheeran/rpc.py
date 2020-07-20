@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "rpc.py"
-version = "0.2.1"
-description = ""
+version = "0.2.2"
+description = "An easy-to-use and powerful RPC framework. Base WSGI & ASGI."
 authors = ["abersheeran <me@abersheeran.com>"]
 readme = "README.md"
 license = "Apache-2.0"
 
-homepage = "https://github.com/abersheeran/setup.py"
-repository = "https://github.com/abersheeran/setup.py"
+homepage = "https://github.com/abersheeran/rpc.py"
+repository = "https://github.com/abersheeran/rpc.py"
 
 classifiers=[
     "Programming Language :: Python :: 3",
