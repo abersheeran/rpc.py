@@ -45,8 +45,9 @@ class RPC(metaclass=RPCMeta):
         serializer: BaseSerializer = JSONSerializer(),
     ):
         assert mode in ("WSGI", "ASGI"), "mode must be in ('WSGI', 'ASGI')"
+        assert prefix.startswith("/") and prefix.endswith("/")
         self.callbacks: typing.Dict[str, typing.Callable] = {}
-        self.prefix = "/" + prefix.strip("/") + "/"
+        self.prefix = prefix
         self.serializer = serializer
 
     def register(self, func: Function) -> Function:
