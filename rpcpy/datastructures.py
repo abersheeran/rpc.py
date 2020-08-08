@@ -1,3 +1,8 @@
+"""
+Copy from [`starlette`](https://github.com/encode/starlette/blob/97257515f8806b8cc519d9850ecadd783b3008f9/starlette/datastructures.py)
+
+Made some minor changes to be compatible with WSGI.
+"""
 import tempfile
 import typing
 import asyncio
