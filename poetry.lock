@@ -145,7 +145,7 @@ description = "Chromium HSTS Preload list as a Python package and updated daily"
 name = "hstspreload"
 optional = true
 python-versions = ">=3.6"
-version = "2020.7.15"
+version = "2020.8.8"
 
 [[package]]
 category = "main"
@@ -367,17 +367,6 @@ pytest = ">=5.4.0"
 testing = ["async-generator (>=1.3)", "coverage", "hypothesis (>=5.7.1)"]
 
 [[package]]
-category = "main"
-description = "A streaming multipart parser for Python"
-name = "python-multipart"
-optional = false
-python-versions = "*"
-version = "0.0.5"
-
-[package.dependencies]
-six = ">=1.4.0"
-
-[[package]]
 category = "dev"
 description = "Alternative regular expression module, to replace re."
 name = "regex"
@@ -397,7 +386,7 @@ version = "1.4.0"
 idna2008 = ["idna"]
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Python 2 and 3 compatibility utilities"
 name = "six"
 optional = false
@@ -467,7 +456,8 @@ client = ["httpx"]
 full = ["httpx"]
 
 [metadata]
-content-hash = "6b9ce7665c59eb9ba1930f3137a7ca38bbd631d3fb590913e8d4e44fb9f14ad1"
+content-hash = "19da082139ff7259d57402210c6735934f87b62178832eec7552220cc18f3b79"
+lock-version = "1.0"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -523,8 +513,8 @@ hpack = [
     {file = "hpack-3.0.0.tar.gz", hash = "sha256:8eec9c1f4bfae3408a3f30500261f7e6a65912dc138526ea054f9ad98892e9d2"},
 ]
 hstspreload = [
-    {file = "hstspreload-2020.7.15-py3-none-any.whl", hash = "sha256:ad805d99ea5af9b4342e1c5afd742f0d941f8821ad3711c42f72b2d050ab5a19"},
-    {file = "hstspreload-2020.7.15.tar.gz", hash = "sha256:71e536f0c54006f778dcb72f1b1f4027a9e9848997dafa9095949fb30cff24bb"},
+    {file = "hstspreload-2020.8.8-py3-none-any.whl", hash = "sha256:4659d10695335c9d8a4e515104e1717f6b787e6576df31e48cf501e9a70b4cc0"},
+    {file = "hstspreload-2020.8.8.tar.gz", hash = "sha256:d1b447c6213be6b27ae97d6d6e562cf9ae4a761514de8f1a53b5660875680b9c"},
 ]
 httpcore = [
     {file = "httpcore-0.9.1-py3-none-any.whl", hash = "sha256:9850fe97a166a794d7e920590d5ec49a05488884c9fc8b5dba8561effab0c2a0"},
@@ -623,9 +613,6 @@ pytest = [
 pytest-asyncio = [
     {file = "pytest-asyncio-0.14.0.tar.gz", hash = "sha256:9882c0c6b24429449f5f969a5158b528f39bde47dc32e85b9f0403965017e700"},
     {file = "pytest_asyncio-0.14.0-py3-none-any.whl", hash = "sha256:2eae1e34f6c68fc0a9dc12d4bea190483843ff4708d24277c41568d6b6044f1d"},
-]
-python-multipart = [
-    {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 regex = [
     {file = "regex-2020.7.14-cp27-cp27m-win32.whl", hash = "sha256:e46d13f38cfcbb79bfdb2964b0fe12561fe633caf964a77a5f8d4e45fe5d2ef7"},

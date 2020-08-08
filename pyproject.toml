@@ -19,7 +19,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-python-multipart = "^0.0.5"
+
 httpx = {version = "^0.13.3", optional = true}  # for client and test
 
 [tool.poetry.extras]
