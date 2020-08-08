@@ -76,11 +76,8 @@ class WSGIRPC(RPC):
             return WSGIResponse(status_code=405)(environ, start_response)
 
         content_type = request.headers["content-type"]
-        if content_type == "application/json":
-            data = request.json
-        else:
-            data = request.form
-        assert isinstance(data, typing.Mapping)
+        assert content_type == "application/json"
+        data = request.json
 
         result = self.callbacks[request.url.path[len(self.prefix) :]](**data)
 
@@ -116,11 +113,8 @@ class ASGIRPC(RPC):
             return await ASGIResponse(status_code=405)(scope, receive, send)
 
         content_type = request.headers["content-type"]
-        if content_type == "application/json":
-            data = await request.json()
-        else:
-            data = await request.form()
-        assert isinstance(data, typing.Mapping)
+        assert content_type == "application/json"
+        data = await request.json()
 
         result = self.callbacks[request.url.path[len(self.prefix) :]](**data)
 

@@ -5,19 +5,15 @@ from http import HTTPStatus
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
-from multipart.multipart import parse_options_header
-
 from rpcpy.types import Environ, StartResponse
 from rpcpy.utils import cookie_parser, cached_property
 from rpcpy.datastructures import (
     URL,
-    FormData,
     Headers,
     QueryParams,
     State,
     MutableHeaders,
 )
-from rpcpy.formparsers import FormParser, MultiPartParser
 
 __all__ = ["Request", "Response"]
 
@@ -93,23 +89,6 @@ class Request(Mapping):
     @cached_property
     def json(self) -> typing.Any:
         return json.loads(self.body)
-
-    @cached_property
-    def form(self) -> FormData:
-        content_type_header = self.headers.get("Content-Type")
-        content_type, options = parse_options_header(content_type_header)
-        if content_type == b"multipart/form-data":
-            multipart_parser = MultiPartParser(self.headers, self.stream())
-            return multipart_parser.parse()
-        elif content_type == b"application/x-www-form-urlencoded":
-            form_parser = FormParser(self.headers, self.stream())
-            return form_parser.parse()
-        else:
-            return FormData()
-
-    def close(self) -> None:
-        if hasattr(self, "_form"):
-            self.form.close()
 
 
 class Response:

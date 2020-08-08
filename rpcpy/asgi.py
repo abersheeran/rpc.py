@@ -3,19 +3,15 @@ import typing
 import asyncio
 from collections.abc import Mapping
 
-from multipart.multipart import parse_options_header
-
 from rpcpy.types import Message, Receive, Scope, Send
 from rpcpy.utils import cookie_parser, cached_property
 from rpcpy.datastructures import (
     URL,
-    FormData,
     Headers,
     QueryParams,
     State,
     MutableHeaders,
 )
-from rpcpy.formparsers import AsyncFormParser, AsyncMultiPartParser
 
 
 __all__ = ["Request", "Response"]
@@ -126,24 +122,6 @@ class Request(Mapping):
             body = await self.body()
             self._json = json.loads(body)
         return self._json
-
-    async def form(self) -> FormData:
-        if not hasattr(self, "_form"):
-            content_type_header = self.headers.get("Content-Type")
-            content_type, options = parse_options_header(content_type_header)
-            if content_type == b"multipart/form-data":
-                multipart_parser = AsyncMultiPartParser(self.headers, self.stream())
-                self._form = await multipart_parser.parse()
-            elif content_type == b"application/x-www-form-urlencoded":
-                form_parser = AsyncFormParser(self.headers, self.stream())
-                self._form = await form_parser.parse()
-            else:
-                self._form = FormData()
-        return self._form
-
-    async def close(self) -> None:
-        if hasattr(self, "_form"):
-            await self._form.aclose()
 
 
 class Response:
