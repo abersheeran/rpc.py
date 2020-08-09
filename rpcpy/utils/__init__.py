@@ -1,5 +1,9 @@
 import typing
+import functools
+import inspect
 from http import cookies as http_cookies
+
+from .openapi import create_model
 
 
 def cookie_parser(cookie_string: str) -> typing.Dict[str, str]:
@@ -25,37 +29,56 @@ def cookie_parser(cookie_string: str) -> typing.Dict[str, str]:
     return cookie_dict
 
 
-class cached_property:
-    """
-    A property that is only computed once per instance and then replaces
-    itself with an ordinary attribute. Deleting the attribute resets the
-    property.
-    """
+if typing.TYPE_CHECKING:
+    # https://github.com/python/mypy/issues/5107
+    # for mypy check and IDE support
+    cached_property = property
+else:
 
-    def __init__(self, func: typing.Callable) -> None:
-        self.__doc__ = getattr(func, "__doc__")
-        self.func = func
+    class cached_property:
+        """
+        A property that is only computed once per instance and then replaces
+        itself with an ordinary attribute. Deleting the attribute resets the
+        property.
+        """
 
-    def __get__(self, obj: typing.Any, cls: typing.Any) -> typing.Any:
-        if obj is None:
-            return self
-        value = obj.__dict__[self.func.__name__] = self.func(obj)
-        return value
+        def __init__(self, func: typing.Callable) -> None:
+            self.func = func
+            functools.update_wrapper(self, func)
+
+        def __get__(self, obj: typing.Any, cls: typing.Any) -> typing.Any:
+            if obj is None:
+                return self
+            value = obj.__dict__[self.func.__name__] = self.func(obj)
+            return value
 
 
-def merge_list(
-    raw: typing.List[typing.Tuple[str, str]]
-) -> typing.Dict[str, typing.Union[typing.List[str], str]]:
+Function = typing.TypeVar("Function", typing.Callable, typing.Callable)
+
+
+def set_type_model(func: Function) -> Function:
     """
-    If there are values with the same key value, they are merged into a List.
+    try generate request body model from type hint and default value
     """
-    d: typing.Dict[str, typing.Union[typing.List[str], str]] = {}
-    for k, v in raw:
-        if k in d:
-            if isinstance(d[k], list):
-                typing.cast(typing.List, d[k]).append(v)
-            else:
-                d[k] = [typing.cast(str, d[k]), v]
+    sig = inspect.signature(func)
+    field_definitions = {}
+    for name, parameter in sig.parameters.items():
+        if (
+            parameter.annotation == parameter.empty
+            and parameter.default == parameter.empty
+        ):
+            # raise ValueError(
+            #     f"You must specify the type for the parameter {func.__name__}:{name}."
+            # )
+            return func  # Maybe the type hint should be mandatory? I'm not sure.
+        if parameter.annotation == parameter.empty:
+            field_definitions[name] = parameter.default
+        elif parameter.default == parameter.empty:
+            field_definitions[name] = (parameter.annotation, ...)
         else:
-            d[k] = v
-    return d
+            field_definitions[name] = (parameter.annotation, parameter.default)
+    if field_definitions:
+        body_model = create_model("temporary", **field_definitions)
+        setattr(func, "__body_model__", body_model)
+
+    return func

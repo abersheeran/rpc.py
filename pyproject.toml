@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rpc.py"
-version = "0.2.2"
+version = "0.3.0"
 description = "An easy-to-use and powerful RPC framework. Base WSGI & ASGI."
 authors = ["abersheeran <me@abersheeran.com>"]
 readme = "README.md"
@@ -20,11 +20,14 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.6"
 
+typing-extensions = {version = "^3.7.4", python = "<3.8"}
 httpx = {version = "^0.13.3", optional = true}  # for client and test
+pydantic = {version = "^1.6.1", optional = true}  # for openapi docs
 
 [tool.poetry.extras]
 client = ["httpx"]
-full = ["httpx"]
+type = ["pydantic"]
+full = ["httpx", "pydantic"]
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"

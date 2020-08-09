@@ -22,6 +22,9 @@ pip install git+https://github.com/abersheeran/rpc.py@setup.py
 
 ### Server side:
 
+<details markdown="1">
+<summary>Use <code>ASGI</code> mode to register <code>async def</code>...</summary>
+
 ```python
 import uvicorn
 from rpcpy import RPC
@@ -48,8 +51,12 @@ async def yield_data(max_num: int):
 if __name__ == "__main__":
     uvicorn.run(app, interface="asgi3", port=65432)
 ```
+</details>
 
 OR
+
+<details markdown="1">
+<summary>Use <code>WSGI</code> mode to register <code>def</code>...</summary>
 
 ```python
 import uvicorn
@@ -77,8 +84,14 @@ def yield_data(max_num: int):
 if __name__ == "__main__":
     uvicorn.run(app, interface="wsgi", port=65432)
 ```
+</details>
 
 ### Client side:
+
+Notice: Regardless of whether the server uses the WSGI mode or the ASGI mode, the client can freely use the asynchronous or synchronous mode.
+
+<details markdown="1">
+<summary>Use <code>httpx.Client()</code> mode to register <code>def</code>...</summary>
 
 ```python
 import httpx
@@ -101,8 +114,12 @@ def sayhi(name: str) -> str:
 def yield_data(max_num: int):
     yield
 ```
+</details>
 
 OR
+
+<details markdown="1">
+<summary>Use <code>httpx.AsyncClient()</code> mode to register <code>async def</code>...</summary>
 
 ```python
 import httpx
@@ -125,6 +142,7 @@ async def sayhi(name: str) -> str:
 async def yield_data(max_num: int):
     yield
 ```
+</details>
 
 ### Sub-route
 
@@ -141,6 +159,16 @@ RPC(serializer=JSONSerializer())
 # or
 RPC(serializer=PickleSerializer())
 ```
+
+## Type hint and OpenAPI Doc
+
+Thanks to the great work of [pydantic](https://pydantic-docs.helpmanual.io/), which makes rpc.py allow you to use type annotation to annotate the types of function parameters and response values, and perform type verification and JSON serialization . At the same time, it is allowed to generate openapi documents for human reading.
+
+### OpenAPI Documents
+
+If you want to open the OpenAPI document, you need to initialize `RPC` like this `RPC(openapi={"title": "TITLE", "description": "DESCRIPTION", "version": "v1"})`.
+
+Then, visit the `"{prefix}openapi-docs"` of RPC and you will be able to see the automatically generated OpenAPI documentation. (If you do not set the `prefix`, the `prefix` is `"/"`)
 
 ## Limitations
 

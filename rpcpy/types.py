@@ -1,3 +1,4 @@
+import sys
 from types import TracebackType
 from typing import (
     Any,
@@ -10,6 +11,11 @@ from typing import (
     Awaitable,
 )
 
+if sys.version_info[:2] < (3, 8):
+    from typing_extensions import TypedDict, Literal, Final, final
+else:
+    from typing import TypedDict, Literal, Final, final
+
 __all__ = [
     "Scope",
     "Message",
@@ -20,6 +26,12 @@ __all__ = [
     "Environ",
     "StartResponse",
     "WSGIApp",
+] + [
+    # built-in types
+    "TypedDict",
+    "Literal",
+    "Final",
+    "final",
 ]
 
 # ASGI

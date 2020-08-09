@@ -12,6 +12,7 @@ class BaseSerializer(metaclass=ABCMeta):
     """
 
     name: str
+    content_type: str
 
     @abstractmethod
     def encode(self, data: typing.Any) -> bytes:
@@ -28,6 +29,7 @@ def json_default(obj: typing.Any) -> typing.Any:
 
 class JSONSerializer(BaseSerializer):
     name = "json"
+    content_type = "application/json"
 
     def __init__(self, default: typing.Callable = json_default) -> None:
         self.default = default
@@ -41,6 +43,7 @@ class JSONSerializer(BaseSerializer):
 
 class PickleSerializer(BaseSerializer):
     name = "pickle"
+    content_type = "application/x-pickle"
 
     def encode(self, data: typing.Any) -> bytes:
         return pickle.dumps(data)

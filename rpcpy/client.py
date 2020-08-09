@@ -1,12 +1,14 @@
 import typing
 import inspect
 import functools
+import json
 from base64 import b64decode
 from types import FunctionType
 
 import httpx
 
 from rpcpy.serializers import get_serializer
+from rpcpy.utils import set_type_model
 
 __all__ = ["Client"]
 
@@ -24,12 +26,12 @@ class Client:
 
     def remote_call(self, func: Function) -> Function:
         is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
-
+        set_type_model(func)  # try set `__body_model__`
         if is_async:
-            return self.async_remote_call(func)
-        return self.sync_remote_call(func)
+            return self.__async_remote_call(func)
+        return self.__sync_remote_call(func)
 
-    def async_remote_call(self, func: Function) -> Function:
+    def __async_remote_call(self, func: Function) -> Function:
         if not self.is_async:
             raise TypeError(
                 "Synchronization Client can only register synchronization functions."
@@ -41,9 +43,19 @@ class Client:
             async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 sig = inspect.signature(func)
                 bound_values = sig.bind(*args, **kwargs)
+                if hasattr(func, "__body_model__"):
+                    post_json = (
+                        getattr(func, "__body_model__")(**bound_values.arguments)
+                        .json()
+                        .encode("utf8")
+                    )
+                else:
+                    post_json = json.dumps(dict(**bound_values.arguments)).encode(
+                        "utf8"
+                    )
                 url = self.base_url + func.__name__
                 resp: httpx.Response = await self.client.post(  # type: ignore
-                    url, json=dict(bound_values.arguments.items())
+                    url, data=post_json, headers={"content-type": "application/json"}
                 )
                 resp.raise_for_status()
                 serializer = get_serializer(resp.headers)
@@ -55,9 +67,22 @@ class Client:
             async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 sig = inspect.signature(func)
                 bound_values = sig.bind(*args, **kwargs)
+                if hasattr(func, "__body_model__"):
+                    post_json = (
+                        getattr(func, "__body_model__")(**bound_values.arguments)
+                        .json()
+                        .encode("utf8")
+                    )
+                else:
+                    post_json = json.dumps(dict(**bound_values.arguments)).encode(
+                        "utf8"
+                    )
                 url = self.base_url + func.__name__
                 async with self.client.stream(
-                    "POST", url, json=dict(bound_values.arguments.items())
+                    "POST",
+                    url,
+                    data=post_json,
+                    headers={"content-type": "application/json"},
                 ) as resp:  # type: httpx.Response
                     serializer = get_serializer(resp.headers)
                     # I don't know how to solve this error:
@@ -70,7 +95,7 @@ class Client:
 
         return typing.cast(Function, wrapper)
 
-    def sync_remote_call(self, func: Function) -> Function:
+    def __sync_remote_call(self, func: Function) -> Function:
         if self.is_async:
             raise TypeError(
                 "Asynchronous Client can only register asynchronous functions."
@@ -81,9 +106,19 @@ class Client:
             def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 sig = inspect.signature(func)
                 bound_values = sig.bind(*args, **kwargs)
+                if hasattr(func, "__body_model__"):
+                    post_json = (
+                        getattr(func, "__body_model__")(**bound_values.arguments)
+                        .json()
+                        .encode("utf8")
+                    )
+                else:
+                    post_json = json.dumps(dict(**bound_values.arguments)).encode(
+                        "utf8"
+                    )
                 url = self.base_url + func.__name__
                 resp: httpx.Response = self.client.post(  # type: ignore
-                    url, json=dict(bound_values.arguments.items()),
+                    url, data=post_json, headers={"content-type": "application/json"}
                 )
                 resp.raise_for_status()
                 serializer = get_serializer(resp.headers)
@@ -95,9 +130,22 @@ class Client:
             def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 sig = inspect.signature(func)
                 bound_values = sig.bind(*args, **kwargs)
+                if hasattr(func, "__body_model__"):
+                    post_json = (
+                        getattr(func, "__body_model__")(**bound_values.arguments)
+                        .json()
+                        .encode("utf8")
+                    )
+                else:
+                    post_json = json.dumps(dict(**bound_values.arguments)).encode(
+                        "utf8"
+                    )
                 url = self.base_url + func.__name__
                 with self.client.stream(
-                    "POST", url, json=dict(bound_values.arguments.items())
+                    "POST",
+                    url,
+                    data=post_json,
+                    headers={"content-type": "application/json"},
                 ) as resp:  # type: httpx.Response
                     serializer = get_serializer(resp.headers)
                     for line in resp.iter_lines():
