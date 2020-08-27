@@ -197,7 +197,7 @@ class EventResponse(Response):
             None,
         )
 
-        self.thread_pool.submit(
+        future = self.thread_pool.submit(
             wait,
             (
                 self.thread_pool.submit(self.send_event),
@@ -206,8 +206,14 @@ class EventResponse(Response):
             return_when=FIRST_COMPLETED,
         )
 
-        while self.has_more_data or self.queue:
-            yield self.queue.pop(0).encode("utf8")
+        try:
+            while self.has_more_data or self.queue:
+                yield self.queue.pop(0).encode("utf8")
+        finally:
+            if not future.cancel():
+                done, pending = future.result()
+                [task.cancel() for task in pending]
+                [task.result() for task in done]
 
     def send_event(self) -> None:
         for chunk in self.generator:
