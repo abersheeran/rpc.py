@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rpc.py"
-version = "0.3.0"
+version = "0.3.1"
 description = "An easy-to-use and powerful RPC framework. Base WSGI & ASGI."
 authors = ["abersheeran <me@abersheeran.com>"]
 readme = "README.md"
