@@ -17,7 +17,10 @@ Function = typing.TypeVar("Function", FunctionType, FunctionType)
 
 class Client:
     def __init__(
-        self, client: typing.Union[httpx.Client, httpx.AsyncClient], *, base_url: str,
+        self,
+        client: typing.Union[httpx.Client, httpx.AsyncClient],
+        *,
+        base_url: str,
     ) -> None:
         assert base_url.endswith("/"), "base_url must be end with '/'"
         self.base_url = base_url

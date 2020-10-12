@@ -131,7 +131,7 @@ class WSGIRPC(RPC):
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
                 return WSGIResponse(
-                    OpenapiTemplate, headers={"content-type": "text/html"},
+                    OpenapiTemplate, headers={"content-type": "text/html"}
                 )(environ, start_response)
             elif request.url.path[len(self.prefix) :] == "get-openapi-docs":
                 return WSGIResponse(
@@ -186,7 +186,7 @@ class ASGIRPC(RPC):
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
                 return await ASGIResponse(
-                    OpenapiTemplate, headers={"content-type": "text/html"},
+                    OpenapiTemplate, headers={"content-type": "text/html"}
                 )(scope, receive, send)
             elif request.url.path[len(self.prefix) :] == "get-openapi-docs":
                 return await ASGIResponse(
@@ -201,7 +201,7 @@ class ASGIRPC(RPC):
 
         content_type = request.headers["content-type"]
         assert content_type == "application/json"
-        data = await request.json()
+        data = await request.json
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):

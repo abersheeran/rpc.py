@@ -1,3 +1,4 @@
+import asyncio
 import typing
 import functools
 import inspect
@@ -49,7 +50,10 @@ else:
         def __get__(self, obj: typing.Any, cls: typing.Any) -> typing.Any:
             if obj is None:
                 return self
-            value = obj.__dict__[self.func.__name__] = self.func(obj)
+            result = self.func(obj)
+            if inspect.isawaitable(result):
+                result = asyncio.ensure_future(result)
+            value = obj.__dict__[self.func.__name__] = result
             return value
 
 

@@ -87,8 +87,8 @@ class Request(Mapping):
         return self.scope["method"]
 
     async def stream(self) -> typing.AsyncGenerator[bytes, None]:
-        if hasattr(self, "_body"):
-            yield self._body
+        if "body" in self.__dict__ and self.__dict__["body"].done():
+            yield await self.body
             yield b""
             return
 
@@ -109,19 +109,17 @@ class Request(Mapping):
                 raise ClientDisconnect()
         yield b""
 
+    @cached_property
     async def body(self) -> bytes:
-        if not hasattr(self, "_body"):
-            chunks = []
-            async for chunk in self.stream():
-                chunks.append(chunk)
-            self._body = b"".join(chunks)
-        return self._body
+        chunks = []
+        async for chunk in self.stream():
+            chunks.append(chunk)
+        return b"".join(chunks)
 
+    @cached_property
     async def json(self) -> typing.Any:
-        if not hasattr(self, "_json"):
-            body = await self.body()
-            self._json = json.loads(body)
-        return self._json
+        body = await self.body
+        return json.loads(body)
 
 
 class Response:
