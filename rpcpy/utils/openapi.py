@@ -1,5 +1,5 @@
-from copy import deepcopy
-from typing import Any, Dict, Optional, Union, Sequence
+import typing
+import inspect
 
 try:
     from pydantic import create_model
@@ -11,55 +11,35 @@ except ImportError:
 
     BaseModel = None  # type: ignore
 
+Callable = typing.TypeVar("Callable", bound=typing.Callable)
 
-def replace_definitions(schema: Dict[str, Any]) -> Dict[str, Any]:
+
+def set_type_model(func: Callable) -> Callable:
     """
-    replace $ref
+    try generate request body model from type hint and default value
     """
-    schema = deepcopy(schema)
+    sig = inspect.signature(func)
+    field_definitions = {}
+    for name, parameter in sig.parameters.items():
+        if (
+            parameter.annotation == parameter.empty
+            and parameter.default == parameter.empty
+        ):
+            # raise ValueError(
+            #     f"You must specify the type for the parameter {func.__name__}:{name}."
+            # )
+            return func  # Maybe the type hint should be mandatory? I'm not sure.
+        if parameter.annotation == parameter.empty:
+            field_definitions[name] = parameter.default
+        elif parameter.default == parameter.empty:
+            field_definitions[name] = (parameter.annotation, ...)
+        else:
+            field_definitions[name] = (parameter.annotation, parameter.default)
+    if field_definitions:
+        body_model = create_model(func.__name__, **field_definitions)
+        setattr(func, "__body_model__", body_model)
 
-    if schema.get("definitions") is not None:
-
-        def replace(value: Union[str, Sequence[Any], Dict[str, Any]]) -> None:
-            if isinstance(value, str):
-                return
-            elif isinstance(value, Sequence):
-                for _value in value:
-                    replace(_value)
-            elif isinstance(value, Dict):
-                for _name in tuple(value.keys()):
-                    if _name == "$ref":
-                        define_schema = schema
-                        for key in value["$ref"][2:].split("/"):
-                            define_schema = define_schema[key]
-                        # replace ref and del it
-                        value.update(define_schema)
-                        del value["$ref"]
-                    else:
-                        replace(value[_name])
-
-        replace(schema["definitions"])
-        replace(schema["properties"])
-        del schema["definitions"]
-
-    return schema
-
-
-def schema_request_body(body: BaseModel = None) -> Optional[Dict[str, Any]]:
-    if body is None:
-        return None
-
-    _schema = replace_definitions(body.schema())
-    del _schema["title"]
-
-    return {
-        "required": True,
-        "content": {"application/json": {"schema": _schema}},
-    }
-
-
-def schema_response(model: BaseModel) -> Dict[str, Any]:
-    return {"application/json": {"schema": replace_definitions(model.schema())}}
+    return func
 
 
 TEMPLATE = """<!DOCTYPE html>

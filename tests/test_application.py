@@ -1,12 +1,12 @@
 import httpx
 import pytest
 
-from rpcpy.application import RPC, WSGIRPC, ASGIRPC
+from rpcpy.application import RPC, WsgiRPC, AsgiRPC
 
 
 def test_wsgirpc():
     rpc = RPC()
-    assert isinstance(rpc, WSGIRPC)
+    assert isinstance(rpc, WsgiRPC)
 
     @rpc.register
     def sayhi(name: str) -> str:
@@ -27,7 +27,7 @@ def test_wsgirpc():
 @pytest.mark.asyncio
 async def test_asgirpc():
     rpc = RPC(mode="ASGI")
-    assert isinstance(rpc, ASGIRPC)
+    assert isinstance(rpc, AsgiRPC)
 
     @rpc.register
     async def sayhi(name: str) -> str:
@@ -54,7 +54,7 @@ def test_wsgi_openapi():
 
     assert rpc.get_openapi_docs() == {
         "openapi": "3.0.0",
-        "info": {"description": "Description", "title": "Title", "version": "v1"},
+        "info": {"title": "Title", "description": "Description", "version": "v1"},
         "paths": {
             "/sayhi": {
                 "post": {
@@ -71,7 +71,14 @@ def test_wsgi_openapi():
                                 }
                             }
                         },
-                    }
+                    },
+                    "responses": {
+                        200: {
+                            "content": {
+                                "application/json": {"schema": {"type": "string"}}
+                            }
+                        }
+                    },
                 }
             }
         },
@@ -95,7 +102,7 @@ async def test_asgi_openapi():
 
     assert rpc.get_openapi_docs() == {
         "openapi": "3.0.0",
-        "info": {"description": "Description", "title": "Title", "version": "v1"},
+        "info": {"title": "Title", "description": "Description", "version": "v1"},
         "paths": {
             "/sayhi": {
                 "post": {
@@ -112,7 +119,14 @@ async def test_asgi_openapi():
                                 }
                             }
                         },
-                    }
+                    },
+                    "responses": {
+                        200: {
+                            "content": {
+                                "application/json": {"schema": {"type": "string"}}
+                            }
+                        }
+                    },
                 }
             }
         },

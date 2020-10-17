@@ -5,29 +5,30 @@ import json
 from base64 import b64encode
 from types import FunctionType
 
-from rpcpy.types import Environ, StartResponse, Scope, Receive, Send, TypedDict
+from rpcpy.types import Environ, StartResponse, Scope, Receive, Send, TypedDict, Literal
+from rpcpy.exceptions import SerializerNotAllowed
 from rpcpy.serializers import BaseSerializer, JSONSerializer
 from rpcpy.asgi import (
-    Request as ASGIRequest,
-    Response as ASGIResponse,
-    EventResponse as ASGIEventResponse,
+    Request as AsgiRequest,
+    Response as AsgiResponse,
+    EventResponse as AsgiEventResponse,
 )
 from rpcpy.wsgi import (
-    Request as WSGIRequest,
-    Response as WSGIResponse,
-    EventResponse as WSGIEventResponse,
+    Request as WsgiRequest,
+    Response as WsgiResponse,
+    EventResponse as WsgiEventResponse,
 )
-from rpcpy.utils import set_type_model
+from rpcpy.utils import check
 from rpcpy.utils.openapi import (
     BaseModel,
-    schema_request_body,
-    schema_response,
-    TEMPLATE as OpenapiTemplate,
+    create_model,
+    set_type_model,
+    TEMPLATE as OPENAPI_TEMPLATE,
 )
 
-__all__ = ["RPC"]
+__all__ = ["RPC", "WsgiRPC", "AsgiRPC"]
 
-Function = typing.TypeVar("Function", FunctionType, FunctionType)
+Function = typing.TypeVar("Function", bound=FunctionType)
 MethodNotAllowedHttpCode = {
     "GET": 404,
     "HEAD": 404,
@@ -41,10 +42,10 @@ class RPCMeta(type):
 
         if cls.__name__ == "RPC":
             if mode == "WSGI":
-                return WSGIRPC(*args, **kwargs)
+                return WsgiRPC(*args, **kwargs)
 
             if mode == "ASGI":
-                return ASGIRPC(*args, **kwargs)
+                return AsgiRPC(*args, **kwargs)
 
         return super().__call__(*args, **kwargs)
 
@@ -56,16 +57,18 @@ class RPC(metaclass=RPCMeta):
     def __init__(
         self,
         *,
+        mode: Literal["WSGI", "ASGI"] = "WSGI",
         prefix: str = "/",
-        mode: str = "WSGI",
-        serializer: BaseSerializer = JSONSerializer(),
+        request_serializer: BaseSerializer = JSONSerializer(),
+        response_serializer: BaseSerializer = JSONSerializer(),
         openapi: OpenAPI = None,
-    ):
+    ) -> None:
         assert mode in ("WSGI", "ASGI"), "mode must be in ('WSGI', 'ASGI')"
         assert prefix.startswith("/") and prefix.endswith("/")
         self.callbacks: typing.Dict[str, typing.Callable] = {}
         self.prefix = prefix
-        self.serializer = serializer
+        self.request_serializer = request_serializer
+        self.response_serializer = response_serializer
         self.openapi = openapi
 
     def register(self, func: Function) -> Function:
@@ -93,26 +96,41 @@ class RPC(metaclass=RPCMeta):
                     }
                 )
             # request body
-            body_doc = schema_request_body(getattr(callback, "__body_model__", None))
-            if body_doc:
-                _["requestBody"] = body_doc
+            body_model = getattr(callback, "__body_model__", None)
+            if body_model:
+                _schema = copy.deepcopy(body_model.schema())
+                del _schema["title"]
+                _["requestBody"] = {
+                    "required": True,
+                    "content": {
+                        self.request_serializer.content_type: {"schema": _schema}
+                    },
+                }
             # response & only 200
             sig = inspect.signature(callback)
-            if (
-                sig.return_annotation != sig.empty
-                and inspect.isclass(sig.return_annotation)
-                and issubclass(sig.return_annotation, BaseModel)
-            ):
+            if sig.return_annotation != sig.empty:
+                if issubclass(sig.return_annotation, BaseModel):
+                    resp_model = sig.return_annotation
+                else:
+                    resp_model = create_model(
+                        callback.__name__ + "-return",
+                        __root__=(sig.return_annotation, ...),
+                    )
+                _schema = copy.deepcopy(resp_model.schema())
+                del _schema["title"]
                 _["responses"] = {
-                    200: {"content": schema_response(sig.return_annotation)}
+                    200: {
+                        "content": {
+                            self.response_serializer.content_type: {"schema": _schema}
+                        }
+                    }
                 }
             if _:
                 openapi["paths"][f"{self.prefix}{name}"] = {"post": _}
-
         return openapi
 
 
-class WSGIRPC(RPC):
+class WsgiRPC(RPC):
     def register(self, func: Function) -> Function:
         if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
             raise TypeError("WSGI mode can only register synchronization functions.")
@@ -122,31 +140,33 @@ class WSGIRPC(RPC):
         self, generator: typing.Generator
     ) -> typing.Generator[str, None, None]:
         for data in generator:
-            yield b64encode(self.serializer.encode(data)).decode("ascii")
+            yield b64encode(self.response_serializer.encode(data)).decode("ascii")
 
-    def __call__(
-        self, environ: Environ, start_response: StartResponse
-    ) -> typing.Iterable[bytes]:
-        request = WSGIRequest(environ)
+    def on_call(self, request: WsgiRequest) -> WsgiResponse:
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
-                return WSGIResponse(
-                    OpenapiTemplate, headers={"content-type": "text/html"}
-                )(environ, start_response)
+                return WsgiResponse(
+                    OPENAPI_TEMPLATE, headers={"content-type": "text/html"}
+                )
             elif request.url.path[len(self.prefix) :] == "get-openapi-docs":
-                return WSGIResponse(
+                return WsgiResponse(
                     json.dumps(self.get_openapi_docs(), ensure_ascii=False),
                     headers={"content-type": "application/json"},
-                )(environ, start_response)
+                )
 
         if request.method != "POST":
-            return WSGIResponse(
+            return WsgiResponse(
                 status_code=MethodNotAllowedHttpCode.get(request.method, 405)
-            )(environ, start_response)
+            )
 
-        content_type = request.headers["content-type"]
-        assert content_type == "application/json"
-        data = request.json
+        check(
+            request.headers["content-type"] == self.request_serializer.content_type
+            or int(request.headers.get("content-type", 0)) == 0,
+            SerializerNotAllowed(
+                f"You should use content-type `{self.request_serializer.content_type}`"
+            ),
+        )
+        data = self.request_serializer.decode(request.body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
@@ -155,21 +175,28 @@ class WSGIRPC(RPC):
             result = callback(**data)
 
         if inspect.isgenerator(result):
-            return WSGIEventResponse(
+            return WsgiEventResponse(
                 self.create_generator(result),
-                headers={"serializer": self.serializer.name},
-            )(environ, start_response)
+                headers={"serializer": self.response_serializer.name},
+            )
 
-        return WSGIResponse(
-            self.serializer.encode(result),
+        return WsgiResponse(
+            self.response_serializer.encode(result),
             headers={
-                "serializer": self.serializer.name,
-                "content-type": self.serializer.content_type,
+                "serializer": self.response_serializer.name,
+                "content-type": self.response_serializer.content_type,
             },
-        )(environ, start_response)
+        )
+
+    def __call__(
+        self, environ: Environ, start_response: StartResponse
+    ) -> typing.Iterable[bytes]:
+        request = WsgiRequest(environ)
+        response = self.on_call(request)
+        return response(environ, start_response)
 
 
-class ASGIRPC(RPC):
+class AsgiRPC(RPC):
     def register(self, func: Function) -> Function:
         if not (inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)):
             raise TypeError("ASGI mode can only register asynchronous functions.")
@@ -179,29 +206,34 @@ class ASGIRPC(RPC):
         self, generator: typing.AsyncGenerator
     ) -> typing.AsyncGenerator[str, None]:
         async for data in generator:
-            yield b64encode(self.serializer.encode(data)).decode("ascii")
+            yield b64encode(self.response_serializer.encode(data)).decode("ascii")
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        request = ASGIRequest(scope, receive, send)
+    async def on_call(self, request: AsgiRequest) -> AsgiResponse:
+        # openapi docs
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
-                return await ASGIResponse(
-                    OpenapiTemplate, headers={"content-type": "text/html"}
-                )(scope, receive, send)
+                return AsgiResponse(
+                    OPENAPI_TEMPLATE, headers={"content-type": "text/html"}
+                )
             elif request.url.path[len(self.prefix) :] == "get-openapi-docs":
-                return await ASGIResponse(
+                return AsgiResponse(
                     json.dumps(self.get_openapi_docs(), ensure_ascii=False),
                     headers={"content-type": "application/json"},
-                )(scope, receive, send)
+                )
 
         if request.method != "POST":
-            return await ASGIResponse(
+            return AsgiResponse(
                 status_code=MethodNotAllowedHttpCode.get(request.method, 405)
-            )(scope, receive, send)
+            )
 
-        content_type = request.headers["content-type"]
-        assert content_type == "application/json"
-        data = await request.json
+        check(
+            request.headers["content-type"] == self.request_serializer.content_type
+            or int(request.headers.get("content-type", 0)) == 0,
+            SerializerNotAllowed(
+                f"You should use content-type `{self.request_serializer.content_type}`"
+            ),
+        )
+        data = self.request_serializer.decode(await request.body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
@@ -210,15 +242,20 @@ class ASGIRPC(RPC):
             result = callback(**data)
 
         if inspect.isasyncgen(result):
-            return await ASGIEventResponse(
+            return AsgiEventResponse(
                 self.create_generator(result),
-                headers={"serializer": self.serializer.name},
-            )(scope, receive, send)
+                headers={"serializer": self.response_serializer.name},
+            )
 
-        return await ASGIResponse(
-            self.serializer.encode(await result),
+        return AsgiResponse(
+            self.response_serializer.encode(await result),
             headers={
-                "serializer": self.serializer.name,
-                "content-type": self.serializer.content_type,
+                "serializer": self.response_serializer.name,
+                "content-type": self.response_serializer.content_type,
             },
-        )(scope, receive, send)
+        )
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        request = AsgiRequest(scope, receive, send)
+        response = await self.on_call(request)
+        return await response(scope, receive, send)

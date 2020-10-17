@@ -3,7 +3,7 @@ import pickle
 import typing
 from abc import ABCMeta, abstractmethod
 
-from rpcpy.exceptions import ServerImplementationError
+from rpcpy.exceptions import SerializerNotFound
 
 
 class BaseSerializer(metaclass=ABCMeta):
@@ -19,7 +19,7 @@ class BaseSerializer(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def decode(self, data: bytes) -> typing.Any:
+    def decode(self, raw_data: bytes) -> typing.Any:
         pass
 
 
@@ -52,9 +52,14 @@ class PickleSerializer(BaseSerializer):
         return pickle.loads(data)
 
 
-SERIALIZERS = {
+SERIALIZER_NAMES = {
     JSONSerializer.name: JSONSerializer(),
     PickleSerializer.name: PickleSerializer(),
+}
+
+SERIALIZER_TYPES = {
+    JSONSerializer.content_type: JSONSerializer(),
+    PickleSerializer.content_type: PickleSerializer(),
 }
 
 
@@ -62,9 +67,18 @@ def get_serializer(headers: typing.Mapping) -> BaseSerializer:
     """
     parse header and try find serializer
     """
-    if "serializer" not in headers:
-        raise ServerImplementationError("Name `serializer` not in resp.headers.")
-    serializer_name = headers["serializer"]
-    if serializer_name not in SERIALIZERS:
-        raise ServerImplementationError(f"Serializer `{serializer_name}` not found.")
-    return SERIALIZERS[serializer_name]
+    serializer_name = headers.get("serializer", None)
+    if serializer_name:
+        if serializer_name not in SERIALIZER_NAMES:
+            raise SerializerNotFound(f"Serializer `{serializer_name}` not found")
+        return SERIALIZER_NAMES[serializer_name]
+
+    serializer_type = headers.get("content-type", None)
+    if serializer_type:
+        if serializer_type not in SERIALIZER_TYPES:
+            raise SerializerNotFound(f"Serializer for `{serializer_type}` not found")
+        return SERIALIZER_TYPES[serializer_type]
+
+    raise SerializerNotFound(
+        "You must set a value for header `serializer` or `content-type`"
+    )

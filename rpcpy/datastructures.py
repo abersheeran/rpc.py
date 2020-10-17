@@ -1,21 +1,15 @@
-"""
-Copy from [`starlette`](https://github.com/encode/starlette/blob/97257515f8806b8cc519d9850ecadd783b3008f9/starlette/datastructures.py)
-
-Made some minor changes to be compatible with WSGI.
-"""
 import tempfile
 import typing
 import asyncio
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
 from rpcpy.types import Environ, Scope
-
+from rpcpy.utils import cached_property
 
 __all__ = [
     "FormData",
+    "MutableHeaders",
     "Headers",
-    "QueryParams",
-    "State",
     "UploadFile",
     "URL",
 ]
@@ -43,7 +37,7 @@ class URL:
                     if key == b"host":
                         host_header = value.decode("latin-1")
                         break
-            elif environ is not None:  # environ
+            elif environ is not None:
                 scheme = environ["wsgi.url_scheme"]
                 server = (environ["SERVER_NAME"], environ["SERVER_PORT"])
                 path = environ.get("SCRIPT_NAME", "") + environ.get("PATH_INFO", "")
@@ -70,11 +64,9 @@ class URL:
 
         self._url = url
 
-    @property
+    @cached_property
     def components(self) -> SplitResult:
-        if not hasattr(self, "_components"):
-            self._components = urlsplit(self._url)
-        return self._components
+        return urlsplit(self._url)
 
     @property
     def scheme(self) -> str:
@@ -317,46 +309,6 @@ class MultiDict(ImmutableMultiDict):
         existing_items = [(k, v) for (k, v) in self._list if k not in value.keys()]
         self._list = existing_items + value.multi_items()
         self._dict.update(value)
-
-
-class QueryParams(ImmutableMultiDict):
-    """
-    An immutable multidict.
-    """
-
-    def __init__(
-        self,
-        *args: typing.Union[
-            "ImmutableMultiDict",
-            typing.Mapping,
-            typing.List[typing.Tuple[typing.Any, typing.Any]],
-            str,
-            bytes,
-        ],
-        **kwargs: typing.Any,
-    ) -> None:
-        assert len(args) < 2, "Too many arguments."
-
-        value = args[0] if args else []
-
-        if isinstance(value, str):
-            super().__init__(parse_qsl(value, keep_blank_values=True), **kwargs)
-        elif isinstance(value, bytes):
-            super().__init__(
-                parse_qsl(value.decode("latin-1"), keep_blank_values=True), **kwargs
-            )
-        else:
-            super().__init__(*args, **kwargs)  # type: ignore
-        self._list = [(str(k), str(v)) for k, v in self._list]
-        self._dict = {str(k): str(v) for k, v in self._dict.items()}
-
-    def __str__(self) -> str:
-        return urlencode(self._list)
-
-    def __repr__(self) -> str:
-        class_name = self.__class__.__name__
-        query_string = str(self)
-        return f"{class_name}({query_string!r})"
 
 
 class UploadFile:
@@ -612,29 +564,3 @@ class MutableHeaders(Headers):
         if existing is not None:
             vary = ", ".join([existing, vary])
         self["vary"] = vary
-
-
-class State(object):
-    """
-    An object that can be used to store arbitrary state.
-
-    Used for `request.state` and `app.state`.
-    """
-
-    def __init__(self, state: typing.Dict = None):
-        if state is None:
-            state = {}
-        super(State, self).__setattr__("_state", state)
-
-    def __setattr__(self, key: typing.Any, value: typing.Any) -> None:
-        self._state[key] = value
-
-    def __getattr__(self, key: typing.Any) -> typing.Any:
-        try:
-            return self._state[key]
-        except KeyError:
-            message = "'{}' object has no attribute '{}'"
-            raise AttributeError(message.format(self.__class__.__name__, key))
-
-    def __delattr__(self, key: typing.Any) -> None:
-        del self._state[key]

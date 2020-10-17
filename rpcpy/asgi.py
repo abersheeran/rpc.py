@@ -1,20 +1,17 @@
-import json
 import typing
 import asyncio
 from collections.abc import Mapping
 
 from rpcpy.types import Message, Receive, Scope, Send
-from rpcpy.utils import cookie_parser, cached_property
+from rpcpy.utils import cached_property
 from rpcpy.datastructures import (
     URL,
     Headers,
-    QueryParams,
-    State,
     MutableHeaders,
 )
 
 
-__all__ = ["Request", "Response"]
+__all__ = ["Request", "Response", "EventResponse"]
 
 
 class ClientDisconnect(Exception):
@@ -63,26 +60,6 @@ class Request(Mapping):
         return Headers(scope=self.scope)
 
     @cached_property
-    def query_params(self) -> QueryParams:
-        return QueryParams(self.scope["query_string"])
-
-    @cached_property
-    def cookies(self) -> typing.Dict[str, str]:
-        cookies: typing.Dict[str, str] = {}
-        cookie_header = self.headers.get("cookie")
-
-        if cookie_header:
-            cookies = cookie_parser(cookie_header)
-        return cookies
-
-    @cached_property
-    def state(self) -> State:
-        # Ensure 'state' has an empty dict if it's not already populated.
-        self.scope.setdefault("state", {})
-        # Create a state instance with a reference to the dict in which it should store info
-        return State(self.scope["state"])
-
-    @cached_property
     def method(self) -> str:
         return self.scope["method"]
 
@@ -115,11 +92,6 @@ class Request(Mapping):
         async for chunk in self.stream():
             chunks.append(chunk)
         return b"".join(chunks)
-
-    @cached_property
-    async def json(self) -> typing.Any:
-        body = await self.body
-        return json.loads(body)
 
 
 class Response:

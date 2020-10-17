@@ -1,21 +1,18 @@
-import json
 import time
 import typing
 from http import HTTPStatus
 from collections.abc import Mapping
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, wait as wait_futures
 
 from rpcpy.types import Environ, StartResponse
-from rpcpy.utils import cookie_parser, cached_property
+from rpcpy.utils import cached_property
 from rpcpy.datastructures import (
     URL,
     Headers,
-    QueryParams,
-    State,
     MutableHeaders,
 )
 
-__all__ = ["Request", "Response"]
+__all__ = ["Request", "Response", "EventResponse"]
 
 
 class Request(Mapping):
@@ -24,49 +21,29 @@ class Request(Mapping):
     any functionality that is common to both `Request` and `WebSocket`.
     """
 
-    def __init__(self, enviorn: Environ) -> None:
-        self.enviorn = enviorn
+    def __init__(self, environ: Environ) -> None:
+        self.environ = environ
 
     def __getitem__(self, key: str) -> str:
-        return self.enviorn[key]
+        return self.environ[key]
 
     def __iter__(self) -> typing.Iterator[str]:
-        return iter(self.enviorn)
+        return iter(self.environ)
 
     def __len__(self) -> int:
-        return len(self.enviorn)
+        return len(self.environ)
 
     @cached_property
     def url(self) -> URL:
-        return URL(environ=self.enviorn)
+        return URL(environ=self.environ)
 
     @cached_property
     def headers(self) -> Headers:
-        return Headers(environ=self.enviorn)
-
-    @cached_property
-    def query_params(self) -> QueryParams:
-        return QueryParams(self.enviorn["QUERY_STRING"])
-
-    @cached_property
-    def cookies(self) -> typing.Dict[str, str]:
-        cookies: typing.Dict[str, str] = {}
-        cookie_header = self.headers.get("cookie")
-
-        if cookie_header:
-            cookies = cookie_parser(cookie_header)
-        return cookies
-
-    @cached_property
-    def state(self) -> State:
-        # Ensure 'state' has an empty dict if it's not already populated.
-        self.enviorn.setdefault("state", {})
-        # Create a state instance with a reference to the dict in which it should store info
-        return State(self.enviorn["state"])
+        return Headers(environ=self.environ)
 
     @cached_property
     def method(self) -> str:
-        return self.enviorn["REQUEST_METHOD"]
+        return self.environ["REQUEST_METHOD"]
 
     def stream(self) -> typing.Generator[bytes, None, None]:
         if "body" in self.__dict__:
@@ -74,7 +51,7 @@ class Request(Mapping):
             return
 
         while True:
-            chunk = self.enviorn["wsgi.input"].read(1024 * 64)
+            chunk = self.environ["wsgi.input"].read(1024 * 64)
             if not chunk:
                 return
             yield chunk
@@ -85,10 +62,6 @@ class Request(Mapping):
         for chunk in self.stream():
             chunks.append(chunk)
         return b"".join(chunks)
-
-    @cached_property
-    def json(self) -> typing.Any:
-        return json.loads(self.body)
 
 
 class Response:
@@ -198,22 +171,19 @@ class EventResponse(Response):
         )
 
         future = self.thread_pool.submit(
-            wait,
+            wait_futures,
             (
                 self.thread_pool.submit(self.send_event),
                 self.thread_pool.submit(self.keep_alive),
             ),
-            return_when=FIRST_COMPLETED,
         )
 
         try:
             while self.has_more_data or self.queue:
                 yield self.queue.pop(0).encode("utf8")
         finally:
-            if not future.cancel():
-                done, pending = future.result()
-                [task.cancel() for task in pending]
-                [task.result() for task in done]
+            if not future.done():
+                future.cancel()
 
     def send_event(self) -> None:
         for chunk in self.generator:
