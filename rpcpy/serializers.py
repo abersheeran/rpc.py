@@ -3,6 +3,11 @@ import pickle
 import typing
 from abc import ABCMeta, abstractmethod
 
+try:
+    import msgpack
+except ImportError:
+    msgpack = None  # type: ignore
+
 from rpcpy.exceptions import SerializerNotFound
 
 
@@ -23,22 +28,30 @@ class BaseSerializer(metaclass=ABCMeta):
         pass
 
 
-def json_default(obj: typing.Any) -> typing.Any:
-    raise TypeError(f"Unresolved type: {type(obj)}")
-
-
 class JSONSerializer(BaseSerializer):
     name = "json"
     content_type = "application/json"
 
-    def __init__(self, default: typing.Callable = json_default) -> None:
-        self.default = default
+    def __init__(
+        self,
+        default_encode: typing.Callable = None,
+        default_decode: typing.Callable = None,
+    ) -> None:
+        self.default_encode = default_encode
+        self.default_decode = default_decode
 
     def encode(self, data: typing.Any) -> bytes:
-        return json.dumps(data, ensure_ascii=False).encode("utf8")
+        return json.dumps(
+            data,
+            ensure_ascii=False,
+            default=self.default_encode,
+        ).encode("utf8")
 
     def decode(self, data: bytes) -> typing.Any:
-        return json.loads(data.decode("utf8"))
+        return json.loads(
+            data.decode("utf8"),
+            object_hook=self.default_decode,
+        )
 
 
 class PickleSerializer(BaseSerializer):
@@ -52,14 +65,39 @@ class PickleSerializer(BaseSerializer):
         return pickle.loads(data)
 
 
+class MsgpackSerializer(BaseSerializer):
+    """
+    Msgpack: https://github.com/msgpack/msgpack-python
+    """
+
+    name = "msgpack"
+    content_type = "application/x-msgpack"
+
+    def __init__(
+        self,
+        default_encode: typing.Callable = None,
+        default_decode: typing.Callable = None,
+    ) -> None:
+        self.default_encode = default_encode
+        self.default_decode = default_decode
+
+    def encode(self, data: typing.Any) -> bytes:
+        return msgpack.packb(data, default=self.default_encode)
+
+    def decode(self, data: bytes) -> typing.Any:
+        return msgpack.unpackb(data, object_hook=self.default_decode)
+
+
 SERIALIZER_NAMES = {
     JSONSerializer.name: JSONSerializer(),
     PickleSerializer.name: PickleSerializer(),
+    MsgpackSerializer.name: MsgpackSerializer(),
 }
 
 SERIALIZER_TYPES = {
     JSONSerializer.content_type: JSONSerializer(),
     PickleSerializer.content_type: PickleSerializer(),
+    MsgpackSerializer.content_type: MsgpackSerializer(),
 }
 
 

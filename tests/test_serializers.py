@@ -1,15 +1,17 @@
 import pytest
 
-from rpcpy.serializers import JSONSerializer, PickleSerializer
+from rpcpy.serializers import JSONSerializer, PickleSerializer, MsgpackSerializer
 
 
 @pytest.mark.parametrize(
     "serializer",
-    [JSONSerializer(), PickleSerializer()],
+    [JSONSerializer(), PickleSerializer(), MsgpackSerializer()],
 )
 @pytest.mark.parametrize(
     "data",
     ["123", "中文", 1, 0, 1239.123, ["123", 1, 123.98], {"a": 1}],
 )
 def test_serializer(serializer, data):
-    assert serializer.decode(serializer.encode(data)) == data
+    _ = serializer.encode(data)
+    assert isinstance(_, bytes)
+    assert serializer.decode(_) == data
