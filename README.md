@@ -10,6 +10,18 @@ Install from PyPi:
 
 ```bash
 pip install rpc.py
+
+# need use client
+pip install rpc.py[client]
+
+# need use pydantic type hint or OpenAPI docs
+pip install rpc.py[type]
+
+# need use msgpack to serializer
+pip install rpc.py[msgpack]
+
+# or install all dependencies
+pip install rpc.py[full]
 ```
 
 Install from github:
@@ -148,16 +160,26 @@ async def yield_data(max_num: int):
 
 If you need to deploy the rpc.py server under `example.com/sub-route/*`, you need to set `RPC(prefix="/sub-route/")` and modify the `Client(base_path=https://example.com/sub-route/)`.
 
-### Serialization of results
+### Serialization
 
-Currently supports two serializers, JSON and Pickle. JSON is used by default.
+Currently supports three serializers, JSON, Pickle and Msgpack. JSON is used by default. You can override the default `JSONSerializer` with parameters.
 
 ```python
-from rpcpy.serializers import JSONSerializer, PickleSerializer
+import httpx
+from rpcpy import RPC
+from rpcpy.client import Client
+from rpcpy.serializers import PickleSerializer, MsgpackSerializer
 
-RPC(serializer=JSONSerializer())
-# or
-RPC(serializer=PickleSerializer())
+RPC(
+    request_serializer=PickleSerializer(), 
+    response_serializer=MsgpackSerializer(),
+)
+Client(
+    httpx.Client(),
+    base_url="http://127.0.0.1:65432/",
+    request_serializer=PickleSerializer(), 
+    response_serializer=MsgpackSerializer(),
+)
 ```
 
 ## Type hint and OpenAPI Doc
@@ -172,4 +194,4 @@ Then, visit the `"{prefix}openapi-docs"` of RPC and you will be able to see the 
 
 ## Limitations
 
-Currently, function parameters must be serializable by `json`.
+Currently, file upload is not supported, but you can do this by passing a bytes object.
