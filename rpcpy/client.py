@@ -14,7 +14,23 @@ __all__ = ["Client"]
 Function = typing.TypeVar("Function", bound=FunctionType)
 
 
-class Client:
+class ClientMeta(type):
+    def __call__(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        if cls.__name__ == "Client":
+            if isinstance(args[0], httpx.Client):
+                return SyncClient(*args, **kwargs)
+
+            if isinstance(args[0], httpx.AsyncClient):
+                return AsyncClient(*args, **kwargs)
+
+            raise TypeError(
+                "The parameter `client` must be an httpx.Client or httpx.AsyncClient object."
+            )
+
+        return super().__call__(*args, **kwargs)
+
+
+class Client(metaclass=ClientMeta):
     def __init__(
         self,
         client: typing.Union[httpx.Client, httpx.AsyncClient],
@@ -28,45 +44,47 @@ class Client:
         self.client = client
         self.request_serializer = request_serializer
         self.response_serializer = response_serializer
-        self.is_async = isinstance(client, httpx.AsyncClient)
 
     def remote_call(self, func: Function) -> Function:
-        is_async = inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
         set_type_model(func)  # try set `__body_model__`
-        if is_async:
-            return self.__async_remote_call(func)
-        return self.__sync_remote_call(func)
+        return func
 
     def _get_url(self, func: Function) -> str:
         return self.base_url + func.__name__
 
-    def __async_remote_call(self, func: Function) -> Function:
-        if not self.is_async:
+    def _get_content(
+        self, func: typing.Callable, *args: typing.Any, **kwargs: typing.Any
+    ) -> bytes:
+        sig = inspect.signature(func)
+        bound_values = sig.bind(*args, **kwargs)
+        if hasattr(func, "__body_model__"):
+            _params = getattr(func, "__body_model__")(**bound_values.arguments).dict()
+        else:
+            _params = dict(**bound_values.arguments)
+        return self.request_serializer.encode(_params)
+
+
+class AsyncClient(Client):
+    if typing.TYPE_CHECKING:
+        client: httpx.AsyncClient
+
+    def remote_call(self, func: Function) -> Function:
+        if not (inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)):
             raise TypeError(
-                "Synchronization Client can only register synchronization functions."
+                "Asynchronous Client can only register asynchronous functions."
             )
 
-        sig = inspect.signature(func)
+        func = super().remote_call(func)
         url = self._get_url(func)
-
-        def get_post_content(*args: typing.Any, **kwargs: typing.Any) -> bytes:
-            bound_values = sig.bind(*args, **kwargs)
-            if hasattr(func, "__body_model__"):
-                _params = getattr(func, "__body_model__")(
-                    **bound_values.arguments
-                ).dict()
-            else:
-                _params = dict(**bound_values.arguments)
-            return self.request_serializer.encode(_params)
 
         if not inspect.isasyncgenfunction(func):
 
             @functools.wraps(func)
             async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-                post_data = get_post_content(*args, **kwargs)
-                resp: httpx.Response = await self.client.post(  # type: ignore
+                post_content = self._get_content(func, *args, **kwargs)
+                resp = await self.client.post(
                     url,
-                    content=post_data,
+                    content=post_content,
                     headers={
                         "content-type": self.request_serializer.content_type,
                         "serializer": self.request_serializer.name,
@@ -79,18 +97,18 @@ class Client:
 
             @functools.wraps(func)
             async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-                post_data = get_post_content(*args, **kwargs)
+                post_content = self._get_content(func, *args, **kwargs)
                 async with self.client.stream(
                     "POST",
                     url,
-                    content=post_data,
+                    content=post_content,
                     headers={
                         "content-type": self.request_serializer.content_type,
                         "serializer": self.request_serializer.name,
                     },
                 ) as resp:
                     resp.raise_for_status()
-                    async for line in resp.aiter_lines():  # type: ignore
+                    async for line in resp.aiter_lines():
                         if line.startswith("data:"):
                             data = line.split(":", maxsplit=1)[1]
                             yield self.response_serializer.decode(
@@ -99,31 +117,26 @@ class Client:
 
         return typing.cast(Function, wrapper)
 
-    def __sync_remote_call(self, func: Function) -> Function:
-        if self.is_async:
+
+class SyncClient(Client):
+    if typing.TYPE_CHECKING:
+        client: httpx.Client
+
+    def remote_call(self, func: Function) -> Function:
+        if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
             raise TypeError(
-                "Asynchronous Client can only register asynchronous functions."
+                "Synchronization Client can only register synchronization functions."
             )
 
-        sig = inspect.signature(func)
+        func = super().remote_call(func)
         url = self._get_url(func)
-
-        def get_post_content(*args: typing.Any, **kwargs: typing.Any) -> bytes:
-            bound_values = sig.bind(*args, **kwargs)
-            if hasattr(func, "__body_model__"):
-                _params = getattr(func, "__body_model__")(
-                    **bound_values.arguments
-                ).dict()
-            else:
-                _params = dict(**bound_values.arguments)
-            return self.request_serializer.encode(_params)
 
         if not inspect.isgeneratorfunction(func):
 
             @functools.wraps(func)
             def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-                post_content = get_post_content(*args, **kwargs)
-                resp: httpx.Response = self.client.post(  # type: ignore
+                post_content = self._get_content(func, *args, **kwargs)
+                resp = self.client.post(
                     url,
                     content=post_content,
                     headers={
@@ -138,7 +151,7 @@ class Client:
 
             @functools.wraps(func)
             def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-                post_content = get_post_content(*args, **kwargs)
+                post_content = self._get_content(func, *args, **kwargs)
                 with self.client.stream(
                     "POST",
                     url,

@@ -129,3 +129,11 @@ async def test_async_none(async_client):
 
     with pytest.raises(TypeError):
         await none("hi")
+
+
+def test_invalid_client():
+    with pytest.raises(
+        TypeError,
+        match="The parameter `client` must be an httpx.Client or httpx.AsyncClient object.",
+    ):
+        Client(0)
