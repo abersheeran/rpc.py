@@ -109,7 +109,9 @@ class RPC(metaclass=RPCMeta):
             # response & only 200
             sig = inspect.signature(callback)
             if sig.return_annotation != sig.empty:
-                if issubclass(sig.return_annotation, BaseModel):
+                if inspect.isclass(sig.return_annotation) and issubclass(
+                    sig.return_annotation, BaseModel
+                ):
                     resp_model = sig.return_annotation
                 else:
                     resp_model = create_model(
