@@ -1,6 +1,6 @@
 # rpc.py
 
-An easy-to-use and powerful RPC framework. Base WSGI & ASGI.
+An fast and powerful RPC framework based on ASGI/WSGI.
 
 Based on WSGI/ASGI, you can deploy the rpc.py server to any server and use http2 to get better performance.
 
