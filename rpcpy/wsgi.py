@@ -159,7 +159,7 @@ class EventResponse(Response):
         super().__init__(None, status_code, _headers)
         self.generator = generator
         self.ping_interval = ping_interval
-        self.queue: Queue = Queue()
+        self.queue: Queue = Queue(13)
         self.has_more_data = True
 
     def __call__(
