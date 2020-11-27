@@ -3,6 +3,7 @@ import typing
 from http import HTTPStatus
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor, wait as wait_futures
+from queue import Queue
 
 from rpcpy.types import Environ, StartResponse
 from rpcpy.utils import cached_property
@@ -158,7 +159,7 @@ class EventResponse(Response):
         super().__init__(None, status_code, _headers)
         self.generator = generator
         self.ping_interval = ping_interval
-        self.queue: typing.List[str] = []
+        self.queue: Queue = Queue()
         self.has_more_data = True
 
     def __call__(
@@ -179,18 +180,18 @@ class EventResponse(Response):
         )
 
         try:
-            while self.has_more_data or self.queue:
-                yield self.queue.pop(0).encode("utf8")
+            while self.has_more_data or not self.queue.empty():
+                yield self.queue.get().encode("utf8")
         finally:
             if not future.done():
                 future.cancel()
 
     def send_event(self) -> None:
         for chunk in self.generator:
-            self.queue.append(f"data: {chunk.strip()}\r\n\r\n")
+            self.queue.put(f"data: {chunk.strip()}\r\n\r\n")
         self.has_more_data = False
 
     def keep_alive(self) -> None:
         while self.has_more_data:
             time.sleep(self.ping_interval)
-            self.queue.append(": ping\r\n\r\n")
+            self.queue.put(": ping\r\n\r\n")
