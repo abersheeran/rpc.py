@@ -46,31 +46,28 @@ TEMPLATE = """<!DOCTYPE html>
 <html>
 
 <head>
-    <title>OpenAPI power by rpc.py</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <style>
-        * {
-            font-family: Menlo, Consolas, "Source Code Pro", Inconsolata, Monaco, "Courier New",
-                'Segoe UI', Helvetica, Arial, sans-serif !important;
-        }
-
-        h1,
-        h2 {
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif !important;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-        }
-    </style>
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css">
+    <title>OpenAPI Docs</title>
 </head>
 
 <body>
-    <redoc spec-url='get-openapi-docs'></redoc>
-    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui-bundle.js"></script>
+    <script>
+        const ui = SwaggerUIBundle({
+            url: './get-openapi-docs',
+            dom_id: '#swagger-ui',
+            presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIBundle.SwaggerUIStandalonePreset
+            ],
+            layout: "BaseLayout",
+            deepLinking: true,
+            showExtensions: true,
+            showCommonExtensions: true
+        })
+
+    </script>
 </body>
 
 </html>
