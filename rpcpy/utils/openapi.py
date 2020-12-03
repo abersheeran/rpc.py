@@ -1,5 +1,6 @@
 import typing
 import inspect
+import warnings
 
 try:
     from pydantic import create_model
@@ -7,9 +8,9 @@ try:
 except ImportError:
 
     def create_model(*args, **kwargs):  # type: ignore
-        raise NotImplementedError()
+        raise NotImplementedError("Need install `pydantic` from pypi.")
 
-    BaseModel = None  # type: ignore
+    BaseModel = type("BaseModel", (), {})  # type: ignore
 
 Callable = typing.TypeVar("Callable", bound=typing.Callable)
 
@@ -36,9 +37,16 @@ def set_type_model(func: Callable) -> Callable:
         else:
             field_definitions[name] = (parameter.annotation, parameter.default)
     if field_definitions:
-        body_model = create_model(func.__name__, **field_definitions)
-        setattr(func, "__body_model__", body_model)
-
+        try:
+            body_model = create_model(func.__name__, **field_definitions)
+            setattr(func, "__body_model__", body_model)
+        except NotImplementedError:
+            message = (
+                "If you wanna using type hint "
+                "to create OpenAPI docs or convert type, "
+                "please install `pydantic` from pypi."
+            )
+            warnings.warn(message, ImportWarning)
     return func
 
 
