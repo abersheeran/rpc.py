@@ -48,7 +48,7 @@ jobs:
           verbose: true
       - name: Uninstall pydantic
         run: |
-          pip uninstall pydantic
+          pip uninstall -y pydantic
       - name: Test with pytest
         run: |
           python script/test.py
