@@ -1,5 +1,7 @@
 # rpc.py
 
+![Codecov](https://img.shields.io/codecov/c/github/abersheeran/rpc.py?style=flat-square)
+
 An fast and powerful RPC framework based on ASGI/WSGI.
 
 Based on WSGI/ASGI, you can deploy the rpc.py server to any server and use http2 to get better performance.
