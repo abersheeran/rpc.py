@@ -29,6 +29,8 @@ def test_wsgirpc():
 
     with httpx.Client(app=rpc, base_url="http://testServer/") as client:
         assert client.get("/openapi-docs").status_code == 405
+        assert client.post("/sayhi", data={"name": "Aber"}).status_code == 415
+        assert client.post("/sayhi", json={"name": "Aber"}).status_code == 200
 
 
 @pytest.mark.asyncio
@@ -50,6 +52,42 @@ async def test_asgirpc():
 
     async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
         assert (await client.get("/openapi-docs")).status_code == 405
+        assert (await client.post("/sayhi", data={"name": "Aber"})).status_code == 415
+        assert (await client.post("/sayhi", json={"name": "Aber"})).status_code == 200
+
+
+@pytest.mark.skipif("pydantic" in sys.modules, reason="Installed pydantic")
+def test_wsgi_openapi_without_pydantic():
+    rpc = RPC(openapi={"title": "Title", "description": "Description", "version": "v1"})
+
+    @rpc.register
+    def sayhi(name: str) -> str:
+        """
+        say hi with name
+        """
+        return f"hi {name}"
+
+    with pytest.raises(NotImplementedError):
+        rpc.get_openapi_docs()
+
+
+@pytest.mark.skipif("pydantic" in sys.modules, reason="Installed pydantic")
+@pytest.mark.asyncio
+async def test_asgi_openapi_without_pydantic():
+    rpc = RPC(
+        mode="ASGI",
+        openapi={"title": "Title", "description": "Description", "version": "v1"},
+    )
+
+    @rpc.register
+    async def sayhi(name: str) -> str:
+        """
+        say hi with name
+        """
+        return f"hi {name}"
+
+    with pytest.raises(NotImplementedError):
+        rpc.get_openapi_docs()
 
 
 @pytest.mark.skipif("pydantic" not in sys.modules, reason="Missing pydantic")
