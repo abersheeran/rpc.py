@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 
 try:
     import msgpack
-except ImportError:
+except ImportError:  # pragma: no cover
     msgpack = None  # type: ignore
 
 from rpcpy.exceptions import SerializerNotFound
