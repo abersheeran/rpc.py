@@ -1,8 +1,8 @@
 import os
-import sys
-import time
 import signal
 import subprocess
+import sys
+import time
 
 
 def execute(*commands):
@@ -26,6 +26,9 @@ def shell(command: str) -> None:
 
 
 if __name__ == "__main__":
-    shell("flake8 rpcpy --ignore E501,W503,E203")
-    shell("mypy -p rpcpy --ignore-missing-imports")
-    shell("pytest -o log_cli=true -o log_cli_level=DEBUG")
+    source_dirs = "rpcpy tests"
+    shell(f"isort --check --diff --profile black {source_dirs}")
+    shell(f"black --check --diff {source_dirs}")
+    shell(f"flake8 --ignore W503,E203,E501,E731 {source_dirs}")
+    shell(f"mypy --ignore-missing-imports {source_dirs}")
+    shell("pytest -vv -s -o log_cli=true -o log_cli_level=DEBUG")

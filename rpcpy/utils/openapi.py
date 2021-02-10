@@ -1,18 +1,53 @@
-import typing
+import functools
 import inspect
+import typing
 import warnings
 
+__all__ = [
+    "BaseModel",
+    "create_model",
+    "validate_arguments",
+    "set_type_model",
+    "is_typed_dict_type",
+    "parse_typed_dict",
+    "TEMPLATE",
+]
+
+Callable = typing.TypeVar("Callable", bound=typing.Callable)
+
 try:
-    from pydantic import create_model
-    from pydantic import BaseModel
+    from pydantic import BaseModel, ValidationError, create_model
+    from pydantic import validate_arguments as pydantic_validate_arguments
+
+    # visit this issue
+    # https://github.com/samuelcolvin/pydantic/issues/1205
+    def validate_arguments(function: Callable) -> Callable:
+        function = pydantic_validate_arguments(function)
+
+        @functools.wraps(function)
+        def change_exception(*args, **kwargs):
+            try:
+                return function(*args, **kwargs)
+            except ValidationError as exception:
+                type_error = TypeError(
+                    "Failed to pass pydantic's type verification, please output"
+                    " `.more_info` of this exception to view detailed information."
+                )
+                type_error.more_info = exception
+                raise type_error
+
+        return change_exception  # type: ignore
+
+
 except ImportError:
 
     def create_model(*args, **kwargs):  # type: ignore
         raise NotImplementedError("Need install `pydantic` from pypi.")
 
-    BaseModel = type("BaseModel", (), {})  # type: ignore
+    def validate_arguments(function: Callable) -> Callable:
+        return function
 
-Callable = typing.TypeVar("Callable", bound=typing.Callable)
+    BaseModel = type("BaseModel", (), {})  # type: ignore
 
 
 def set_type_model(func: Callable) -> Callable:
@@ -48,6 +83,25 @@ def set_type_model(func: Callable) -> Callable:
             )
             warnings.warn(message, ImportWarning)
     return func
+
+
+def is_typed_dict_type(type_) -> bool:
+    return issubclass(type_, dict) and getattr(type_, "__annotations__", False)
+
+
+def parse_typed_dict(typed_dict) -> typing.Type[BaseModel]:
+    """
+    parse `TypedDict` to generate `pydantic.BaseModel`
+    """
+    annotations = {}
+    for name, field in typed_dict.__annotations__.items():
+        if is_typed_dict_type(field):
+            annotations[name] = (parse_typed_dict(field), ...)
+        else:
+            default_value = getattr(typed_dict, name, ...)
+            annotations[name] = (field, default_value)
+
+    return create_model(typed_dict.__name__, **annotations)  # type: ignore
 
 
 TEMPLATE = """<!DOCTYPE html>

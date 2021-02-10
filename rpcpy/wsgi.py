@@ -1,17 +1,14 @@
 import time
 import typing
-from http import HTTPStatus
 from collections.abc import Mapping
-from concurrent.futures import ThreadPoolExecutor, wait as wait_futures
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait as wait_futures
+from http import HTTPStatus
 from queue import Queue
 
+from rpcpy.datastructures import URL, Headers, MutableHeaders
 from rpcpy.types import Environ, StartResponse
 from rpcpy.utils import cached_property
-from rpcpy.datastructures import (
-    URL,
-    Headers,
-    MutableHeaders,
-)
 
 __all__ = ["Request", "Response", "EventResponse"]
 

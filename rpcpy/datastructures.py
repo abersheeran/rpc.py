@@ -1,6 +1,6 @@
+import asyncio
 import tempfile
 import typing
-import asyncio
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
 from rpcpy.types import Environ, Scope
@@ -144,9 +144,7 @@ class URL:
         query = urlencode([(str(key), str(value)) for key, value in kwargs.items()])
         return self.replace(query=query)
 
-    def remove_query_params(
-        self, keys: typing.Union[str, typing.Sequence[str]]
-    ) -> "URL":
+    def remove_query_params(self, keys: typing.Union[str, typing.Sequence[str]]) -> "URL":
         if isinstance(keys, str):
             keys = [keys]
         params = MultiDict(parse_qsl(self.query, keep_blank_values=True))
@@ -200,9 +198,7 @@ class ImmutableMultiDict(typing.Mapping):
             value = typing.cast(typing.Mapping, value)
             _items = list(value.items())
         else:
-            value = typing.cast(
-                typing.List[typing.Tuple[typing.Any, typing.Any]], value
-            )
+            value = typing.cast(typing.List[typing.Tuple[typing.Any, typing.Any]], value)
             _items = list(value)
 
         self._dict = {k: v for k, v in _items}
@@ -438,8 +434,7 @@ class Headers(typing.Mapping[str, str]):
 
     def items(self) -> typing.List[typing.Tuple[str, str]]:  # type: ignore
         return [
-            (key.decode("latin-1"), value.decode("latin-1"))
-            for key, value in self._list
+            (key.decode("latin-1"), value.decode("latin-1")) for key, value in self._list
         ]
 
     def get(self, key: str, default: typing.Any = None) -> typing.Any:

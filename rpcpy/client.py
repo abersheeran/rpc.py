@@ -1,13 +1,13 @@
-import typing
-import inspect
 import functools
+import inspect
+import typing
 from base64 import b64decode
 from types import FunctionType
 
 import httpx
 
-from rpcpy.serializers import BaseSerializer, JSONSerializer
-from rpcpy.utils.openapi import set_type_model
+from rpcpy.serializers import BaseSerializer, JSONSerializer, get_serializer
+from rpcpy.utils.openapi import validate_arguments
 
 __all__ = ["Client"]
 
@@ -37,16 +37,13 @@ class Client(metaclass=ClientMeta):
         *,
         base_url: str,
         request_serializer: BaseSerializer = JSONSerializer(),
-        response_serializer: BaseSerializer = JSONSerializer(),
     ) -> None:
         assert base_url.endswith("/"), "base_url must be end with '/'"
         self.base_url = base_url
         self.client = client
         self.request_serializer = request_serializer
-        self.response_serializer = response_serializer
 
     def remote_call(self, func: Function) -> Function:
-        set_type_model(func)  # try set `__body_model__`
         return func
 
     def _get_url(self, func: Function) -> str:
@@ -57,11 +54,7 @@ class Client(metaclass=ClientMeta):
     ) -> bytes:
         sig = inspect.signature(func)
         bound_values = sig.bind(*args, **kwargs)
-        if hasattr(func, "__body_model__"):
-            _params = getattr(func, "__body_model__")(**bound_values.arguments).dict()
-        else:
-            _params = dict(**bound_values.arguments)
-        return self.request_serializer.encode(_params)
+        return self.request_serializer.encode(dict(**bound_values.arguments))
 
 
 class AsyncClient(Client):
@@ -79,6 +72,7 @@ class AsyncClient(Client):
 
         if not inspect.isasyncgenfunction(func):
 
+            @validate_arguments
             @functools.wraps(func)
             async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 post_content = self._get_content(func, *args, **kwargs)
@@ -91,10 +85,11 @@ class AsyncClient(Client):
                     },
                 )
                 resp.raise_for_status()
-                return self.response_serializer.decode(resp.content)
+                return get_serializer(resp.headers).decode(resp.content)
 
         else:
 
+            @validate_arguments
             @functools.wraps(func)
             async def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 post_content = self._get_content(func, *args, **kwargs)
@@ -109,11 +104,12 @@ class AsyncClient(Client):
                 ) as resp:
                     resp.raise_for_status()
                     async for line in resp.aiter_lines():
-                        if line.startswith("data:"):
-                            data = line.split(":", maxsplit=1)[1]
-                            yield self.response_serializer.decode(
-                                b64decode(data.encode("ascii"))
-                            )
+                        if not line.startswith("data:"):
+                            continue
+                        data = line.split(":", maxsplit=1)[1]
+                        yield get_serializer(resp.headers).decode(
+                            b64decode(data.encode("ascii"))
+                        )
 
         return typing.cast(Function, wrapper)
 
@@ -133,6 +129,7 @@ class SyncClient(Client):
 
         if not inspect.isgeneratorfunction(func):
 
+            @validate_arguments
             @functools.wraps(func)
             def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 post_content = self._get_content(func, *args, **kwargs)
@@ -145,10 +142,11 @@ class SyncClient(Client):
                     },
                 )
                 resp.raise_for_status()
-                return self.response_serializer.decode(resp.content)
+                return get_serializer(resp.headers).decode(resp.content)
 
         else:
 
+            @validate_arguments
             @functools.wraps(func)
             def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
                 post_content = self._get_content(func, *args, **kwargs)
@@ -163,10 +161,11 @@ class SyncClient(Client):
                 ) as resp:
                     resp.raise_for_status()
                     for line in resp.iter_lines():
-                        if line.startswith("data:"):
-                            data = line.split(":", maxsplit=1)[1]
-                            yield self.response_serializer.decode(
-                                b64decode(data.encode("ascii"))
-                            )
+                        if not line.startswith("data:"):
+                            continue
+                        data = line.split(":", maxsplit=1)[1]
+                        yield get_serializer(resp.headers).decode(
+                            b64decode(data.encode("ascii"))
+                        )
 
         return typing.cast(Function, wrapper)

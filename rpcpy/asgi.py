@@ -1,15 +1,10 @@
-import typing
 import asyncio
+import typing
 from collections.abc import Mapping
 
+from rpcpy.datastructures import URL, Headers, MutableHeaders
 from rpcpy.types import Message, Receive, Scope, Send
 from rpcpy.utils import cached_property
-from rpcpy.datastructures import (
-    URL,
-    Headers,
-    MutableHeaders,
-)
-
 
 __all__ = ["Request", "Response", "EventResponse"]
 

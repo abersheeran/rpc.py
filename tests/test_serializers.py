@@ -1,6 +1,6 @@
 import pytest
 
-from rpcpy.serializers import JSONSerializer, PickleSerializer, MsgpackSerializer
+from rpcpy.serializers import JSONSerializer, MsgpackSerializer, PickleSerializer
 
 
 @pytest.mark.parametrize(

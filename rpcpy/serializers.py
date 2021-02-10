@@ -21,11 +21,11 @@ class BaseSerializer(metaclass=ABCMeta):
 
     @abstractmethod
     def encode(self, data: typing.Any) -> bytes:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def decode(self, raw_data: bytes) -> typing.Any:
-        pass
+        raise NotImplementedError()
 
 
 class JSONSerializer(BaseSerializer):

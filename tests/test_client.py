@@ -1,5 +1,9 @@
-import pytest
+import asyncio
+import time
+from typing import AsyncGenerator, Generator
+
 import httpx
+import pytest
 
 from rpcpy import RPC
 from rpcpy.client import Client
@@ -18,8 +22,9 @@ def wsgi_app():
         return f"hi {name}"
 
     @app.register
-    def yield_data(max_num: int):
+    def yield_data(max_num: int) -> Generator[int, None, None]:
         for i in range(max_num):
+            time.sleep(0.001)
             yield i
 
     return app
@@ -38,8 +43,9 @@ def asgi_app():
         return f"hi {name}"
 
     @app.register
-    async def yield_data(max_num: int):
+    async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
         for i in range(max_num):
+            await asyncio.sleep(0.001)
             yield i
 
     return app

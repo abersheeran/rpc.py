@@ -38,6 +38,8 @@ pip install git+https://github.com/abersheeran/rpc.py@setup.py
 <summary>Use <code>ASGI</code> mode to register <code>async def</code>...</summary>
 
 ```python
+from typing import AsyncGenerator
+
 import uvicorn
 from rpcpy import RPC
 
@@ -55,7 +57,7 @@ async def sayhi(name: str) -> str:
 
 
 @app.register
-async def yield_data(max_num: int):
+async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
     for i in range(max_num):
         yield i
 
@@ -71,6 +73,8 @@ OR
 <summary>Use <code>WSGI</code> mode to register <code>def</code>...</summary>
 
 ```python
+from typing import Generator
+
 import uvicorn
 from rpcpy import RPC
 
@@ -88,7 +92,7 @@ def sayhi(name: str) -> str:
 
 
 @app.register
-def yield_data(max_num: int):
+def yield_data(max_num: int) -> Generator[int, None, None]:
     for i in range(max_num):
         yield i
 
@@ -106,6 +110,8 @@ Notice: Regardless of whether the server uses the WSGI mode or the ASGI mode, th
 <summary>Use <code>httpx.Client()</code> mode to register <code>def</code>...</summary>
 
 ```python
+from typing import Generator
+
 import httpx
 from rpcpy.client import Client
 
@@ -123,7 +129,7 @@ def sayhi(name: str) -> str:
 
 
 @app.remote_call
-def yield_data(max_num: int):
+def yield_data(max_num: int) -> Generator[int, None, None]:
     yield
 ```
 </details>
@@ -134,6 +140,8 @@ OR
 <summary>Use <code>httpx.AsyncClient()</code> mode to register <code>async def</code>...</summary>
 
 ```python
+from typing import AsyncGenerator
+
 import httpx
 from rpcpy.client import Client
 
@@ -151,7 +159,7 @@ async def sayhi(name: str) -> str:
 
 
 @app.remote_call
-async def yield_data(max_num: int):
+async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
     yield
 ```
 </details>
@@ -170,15 +178,11 @@ from rpcpy import RPC
 from rpcpy.client import Client
 from rpcpy.serializers import PickleSerializer, MsgpackSerializer
 
-RPC(
-    request_serializer=PickleSerializer(), 
-    response_serializer=MsgpackSerializer(),
-)
+RPC(response_serializer=MsgpackSerializer())
+# Or
 Client(
-    httpx.Client(),
-    base_url="http://127.0.0.1:65432/",
-    request_serializer=PickleSerializer(), 
-    response_serializer=MsgpackSerializer(),
+    ...,
+    request_serializer=PickleSerializer(),
 )
 ```
 
@@ -194,4 +198,4 @@ Then, visit the `"{prefix}openapi-docs"` of RPC and you will be able to see the 
 
 ## Limitations
 
-Currently, file upload is not supported, but you can do this by passing a bytes object.
+Currently, file upload is not supported, but you can do this by passing a `bytes` object.

@@ -1,7 +1,14 @@
+import asyncio
+import sys
+import time
+from typing import AsyncGenerator, Generator
+
 import httpx
 import pytest
 
-from rpcpy.application import RPC, WsgiRPC, AsgiRPC
+from rpcpy.application import RPC, AsgiRPC, WsgiRPC
+from rpcpy.serializers import SERIALIZER_NAMES, SERIALIZER_TYPES
+from rpcpy.types import TypedDict
 
 
 def test_wsgirpc():
@@ -21,7 +28,7 @@ def test_wsgirpc():
             return f"hi {name}"
 
     with httpx.Client(app=rpc, base_url="http://testServer/") as client:
-        assert client.get("/openapi-docs").status_code == 404
+        assert client.get("/openapi-docs").status_code == 405
 
 
 @pytest.mark.asyncio
@@ -42,53 +49,43 @@ async def test_asgirpc():
             return f"hi {name}"
 
     async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
-        assert (await client.get("/openapi-docs")).status_code == 404
+        assert (await client.get("/openapi-docs")).status_code == 405
 
 
+@pytest.mark.skipif("pydantic" not in sys.modules, reason="Missing pydantic")
 def test_wsgi_openapi():
     rpc = RPC(openapi={"title": "Title", "description": "Description", "version": "v1"})
 
     @rpc.register
     def sayhi(name: str) -> str:
+        """
+        say hi with name
+        """
         return f"hi {name}"
 
-    assert rpc.get_openapi_docs() == {
-        "openapi": "3.0.0",
-        "info": {"title": "Title", "description": "Description", "version": "v1"},
-        "paths": {
-            "/sayhi": {
-                "post": {
-                    "requestBody": {
-                        "required": True,
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "name": {"title": "Name", "type": "string"}
-                                    },
-                                    "required": ["name"],
-                                }
-                            }
-                        },
-                    },
-                    "responses": {
-                        200: {
-                            "content": {
-                                "application/json": {"schema": {"type": "string"}}
-                            }
-                        }
-                    },
-                }
-            }
-        },
-    }
+    class DNS(TypedDict):
+        dns_type: str
+        host: str
+        result: str
+
+    @rpc.register
+    def query_dns(dns_type: str, host: str) -> DNS:
+        return {"dns_type": dns_type, "host": host, "result": "result"}
+
+    @rpc.register
+    def timestamp() -> Generator[int, None, None]:
+        while True:
+            yield int(time.time())
+            time.sleep(1)
+
+    assert rpc.get_openapi_docs() == OPENAPI_DOCS
 
     with httpx.Client(app=rpc, base_url="http://testServer/") as client:
         assert client.get("/openapi-docs").status_code == 200
         assert client.get("/get-openapi-docs").status_code == 200
 
 
+@pytest.mark.skipif("pydantic" not in sys.modules, reason="Missing pydantic")
 @pytest.mark.asyncio
 async def test_asgi_openapi():
     rpc = RPC(
@@ -98,40 +95,227 @@ async def test_asgi_openapi():
 
     @rpc.register
     async def sayhi(name: str) -> str:
+        """
+        say hi with name
+        """
         return f"hi {name}"
 
-    assert rpc.get_openapi_docs() == {
-        "openapi": "3.0.0",
-        "info": {"title": "Title", "description": "Description", "version": "v1"},
-        "paths": {
-            "/sayhi": {
-                "post": {
-                    "requestBody": {
+    DNS = TypedDict("DNS", {"dns_type": str, "host": str, "result": str})
+
+    @rpc.register
+    async def query_dns(dns_type: str, host: str) -> DNS:
+        return {"dns_type": dns_type, "host": host, "result": "result"}
+
+    @rpc.register
+    async def timestamp() -> AsyncGenerator[int, None]:
+        while True:
+            yield int(time.time())
+            await asyncio.sleep(1)
+
+    assert rpc.get_openapi_docs() == OPENAPI_DOCS
+
+    async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
+        assert (await client.get("/openapi-docs")).status_code == 200
+        assert (await client.get("/get-openapi-docs")).status_code == 200
+
+
+OPENAPI_DOCS = {
+    "openapi": "3.0.0",
+    "info": {"title": "Title", "description": "Description", "version": "v1"},
+    "paths": {
+        "/sayhi": {
+            "post": {
+                "summary": "say hi with name",
+                "parameters": [
+                    {
+                        "name": "content-type",
+                        "in": "header",
+                        "description": "At least one of serializer and content-type must be used"
+                        " so that the server can know which serializer is used to parse the data.",
                         "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                serializer_type for serializer_type in SERIALIZER_TYPES
+                            ],
+                        },
+                    },
+                    {
+                        "name": "serializer",
+                        "in": "header",
+                        "description": "At least one of serializer and content-type must be used"
+                        " so that the server can know which serializer is used to parse the data.",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                serializer_name for serializer_name in SERIALIZER_NAMES
+                            ],
+                        },
+                    },
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        serializer_type: {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"title": "Name", "type": "string"}
+                                },
+                                "required": ["name"],
+                            }
+                        }
+                        for serializer_type in SERIALIZER_TYPES
+                    },
+                },
+                "responses": {
+                    200: {
+                        "content": {"application/json": {"schema": {"type": "string"}}},
+                        "headers": {
+                            "serializer": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": ["json"],
+                                },
+                                "description": "Serializer Name",
+                            }
+                        },
+                    }
+                },
+            }
+        },
+        "/query_dns": {
+            "post": {
+                "parameters": [
+                    {
+                        "name": "content-type",
+                        "in": "header",
+                        "description": "At least one of serializer and content-type must be used"
+                        " so that the server can know which serializer is used to parse the data.",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                serializer_type for serializer_type in SERIALIZER_TYPES
+                            ],
+                        },
+                    },
+                    {
+                        "name": "serializer",
+                        "in": "header",
+                        "description": "At least one of serializer and content-type must be used"
+                        " so that the server can know which serializer is used to parse the data.",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                serializer_name for serializer_name in SERIALIZER_NAMES
+                            ],
+                        },
+                    },
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        serializer_type: {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "dns_type": {
+                                        "title": "Dns Type",
+                                        "type": "string",
+                                    },
+                                    "host": {
+                                        "title": "Host",
+                                        "type": "string",
+                                    },
+                                },
+                                "required": ["dns_type", "host"],
+                            }
+                        }
+                        for serializer_type in SERIALIZER_TYPES
+                    },
+                },
+                "responses": {
+                    200: {
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "name": {"title": "Name", "type": "string"}
+                                        "dns_type": {
+                                            "title": "Dns Type",
+                                            "type": "string",
+                                        },
+                                        "host": {
+                                            "title": "Host",
+                                            "type": "string",
+                                        },
+                                        "result": {
+                                            "title": "Result",
+                                            "type": "string",
+                                        },
                                     },
-                                    "required": ["name"],
+                                    "required": ["dns_type", "host", "result"],
                                 }
                             }
                         },
-                    },
-                    "responses": {
-                        200: {
-                            "content": {
-                                "application/json": {"schema": {"type": "string"}}
+                        "headers": {
+                            "serializer": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": ["json"],
+                                },
+                                "description": "Serializer Name",
                             }
-                        }
-                    },
-                }
+                        },
+                    }
+                },
             }
         },
-    }
-
-    async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
-        assert (await client.get("/openapi-docs")).status_code == 200
-        assert (await client.get("/get-openapi-docs")).status_code == 200
+        "/timestamp": {
+            "post": {
+                "parameters": [
+                    {
+                        "name": "content-type",
+                        "in": "header",
+                        "description": "At least one of serializer and content-type must be used"
+                        " so that the server can know which serializer is used to parse the data.",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                serializer_type for serializer_type in SERIALIZER_TYPES
+                            ],
+                        },
+                    },
+                    {
+                        "name": "serializer",
+                        "in": "header",
+                        "description": "At least one of serializer and content-type must be used"
+                        " so that the server can know which serializer is used to parse the data.",
+                        "required": True,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                serializer_name for serializer_name in SERIALIZER_NAMES
+                            ],
+                        },
+                    },
+                ],
+                "responses": {
+                    200: {
+                        "content": {"text/event-stream": {"schema": {"type": "integer"}}},
+                        "headers": {
+                            "serializer": {
+                                "schema": {"type": "string", "enum": ["json"]},
+                                "description": "Serializer Name",
+                            }
+                        },
+                    }
+                },
+            }
+        },
+    },
+}

@@ -175,8 +175,7 @@ def test_formdata():
     assert list(form) == ["a", "b"]
     assert dict(form) == {"a": "456", "b": upload}
     assert (
-        repr(form)
-        == "FormData([('a', '123'), ('a', '456'), ('b', " + repr(upload) + ")])"
+        repr(form) == "FormData([('a', '123'), ('a', '456'), ('b', " + repr(upload) + ")])"
     )
     assert FormData(form) == form
     assert FormData({"a": "123", "b": "789"}) == FormData([("a", "123"), ("b", "789")])
@@ -200,12 +199,8 @@ def test_multidict():
     assert dict(q) == {"a": "456", "b": "789"}
     assert str(q) == "MultiDict([('a', '123'), ('a', '456'), ('b', '789')])"
     assert repr(q) == "MultiDict([('a', '123'), ('a', '456'), ('b', '789')])"
-    assert MultiDict({"a": "123", "b": "456"}) == MultiDict(
-        [("a", "123"), ("b", "456")]
-    )
-    assert MultiDict({"a": "123", "b": "456"}) == MultiDict(
-        [("a", "123"), ("b", "456")]
-    )
+    assert MultiDict({"a": "123", "b": "456"}) == MultiDict([("a", "123"), ("b", "456")])
+    assert MultiDict({"a": "123", "b": "456"}) == MultiDict([("a", "123"), ("b", "456")])
     assert MultiDict({"a": "123", "b": "456"}) == MultiDict({"b": "456", "a": "123"})
     assert MultiDict() == MultiDict({})
     assert MultiDict({"a": "123", "b": "456"}) != "invalid"
