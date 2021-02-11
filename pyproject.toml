@@ -4,7 +4,7 @@ description = "An fast and powerful RPC framework based on ASGI/WSGI."
 license = "Apache-2.0"
 name = "rpc.py"
 readme = "README.md"
-version = "0.4.1"
+version = "0.4.2"
 
 homepage = "https://github.com/abersheeran/rpc.py"
 repository = "https://github.com/abersheeran/rpc.py"
