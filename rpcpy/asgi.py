@@ -174,7 +174,7 @@ class EventResponse(Response):
     ) -> None:
 
         _headers = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
-        if headers:
+        if headers is not None:
             _headers.update(headers)
         super().__init__(None, status_code, _headers)
         self.generator = generator

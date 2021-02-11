@@ -237,18 +237,16 @@ class WsgiRPC(RPC):
             result = callback(**data)
 
         if inspect.isgenerator(result):
-            return WsgiEventResponse(
-                self.create_generator(result),
-                headers={"serializer": self.response_serializer.name},
+            response = WsgiEventResponse(
+                self.create_generator(result), headers={"serializer-base": "base64"}
             )
-
-        return WsgiResponse(
-            self.response_serializer.encode(result),
-            headers={
-                "serializer": self.response_serializer.name,
-                "content-type": self.response_serializer.content_type,
-            },
-        )
+        else:
+            response = WsgiResponse(
+                self.response_serializer.encode(result),
+                headers={"content-type": self.response_serializer.content_type},
+            )
+        response.headers["serializer"] = self.response_serializer.name
+        return response
 
     def __call__(
         self, environ: Environ, start_response: StartResponse
@@ -280,18 +278,16 @@ class AsgiRPC(RPC):
             result = callback(**data)
 
         if inspect.isasyncgen(result):
-            return AsgiEventResponse(
-                self.create_generator(result),
-                headers={"serializer": self.response_serializer.name},
+            response = AsgiEventResponse(
+                self.create_generator(result), headers={"serializer-base": "base64"}
             )
-
-        return AsgiResponse(
-            self.response_serializer.encode(await result),
-            headers={
-                "serializer": self.response_serializer.name,
-                "content-type": self.response_serializer.content_type,
-            },
-        )
+        else:
+            response = AsgiResponse(
+                self.response_serializer.encode(await result),
+                headers={"content-type": self.response_serializer.content_type},
+            )
+        response.headers["serializer"] = self.response_serializer.name
+        return response
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         request = AsgiRequest(scope, receive, send)

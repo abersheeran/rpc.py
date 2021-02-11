@@ -21,6 +21,7 @@ class Request(Mapping):
 
     def __init__(self, environ: Environ) -> None:
         self.environ = environ
+        self._stream_consumed = False
 
     def __getitem__(self, key: str) -> str:
         return self.environ[key]
@@ -48,8 +49,13 @@ class Request(Mapping):
             yield self.body
             return
 
+        if self._stream_consumed:
+            raise RuntimeError("Stream consumed")
+
+        self._stream_consumed = True
+        body = self.environ["wsgi.input"]
         while True:
-            chunk = self.environ["wsgi.input"].read(1024 * 64)
+            chunk = body.read(1024 * 64)
             if not chunk:
                 return
             yield chunk
@@ -88,43 +94,41 @@ class Response:
 
     def init_headers(self, headers: typing.Mapping[str, str] = None) -> None:
         if headers is None:
-            raw_headers: typing.List[typing.Tuple[str, str]] = []
+            raw_headers: typing.List[typing.Tuple[bytes, bytes]] = []
             populate_content_length = True
             populate_content_type = True
         else:
-            raw_headers = [(k.lower(), v) for k, v in headers.items()]
+            raw_headers = [
+                (k.lower().encode("latin-1"), v.encode("latin-1"))
+                for k, v in headers.items()
+            ]
             keys = [h[0] for h in raw_headers]
-            populate_content_length = "content-length" not in keys
-            populate_content_type = "content-type" not in keys
+            populate_content_length = b"content-length" not in keys
+            populate_content_type = b"content-type" not in keys
 
         body = getattr(self, "body", b"")
         if body and populate_content_length:
             content_length = str(len(body))
-            raw_headers.append(("content-length", content_length))
+            raw_headers.append((b"content-length", content_length.encode("latin-1")))
 
         content_type = self.media_type
         if content_type is not None and populate_content_type:
             if content_type.startswith("text/"):
                 content_type += "; charset=" + self.charset
-            raw_headers.append(("content-type", content_type))
+            raw_headers.append((b"content-type", content_type.encode("latin-1")))
 
         self.raw_headers = raw_headers
 
     @cached_property
     def headers(self) -> MutableHeaders:
-        return MutableHeaders(
-            raw=[
-                (key.encode("latin-1"), value.encode("latin-1"))
-                for key, value in self.raw_headers
-            ]
-        )
+        return MutableHeaders(raw=self.raw_headers)
 
     def __call__(
         self, environ: Environ, start_response: StartResponse
     ) -> typing.Iterable[bytes]:
         start_response(
             f"{self.status_code} {HTTPStatus(self.status_code).phrase}",
-            self.raw_headers,
+            [(k.decode("latin-1"), v.decode("latin-1")) for k, v in self.raw_headers],
             None,
         )
         yield self.body
@@ -151,7 +155,7 @@ class EventResponse(Response):
     ) -> None:
 
         _headers = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
-        if headers:
+        if headers is not None:
             _headers.update(headers)
         super().__init__(None, status_code, _headers)
         self.generator = generator
@@ -164,7 +168,7 @@ class EventResponse(Response):
     ) -> typing.Iterable[bytes]:
         start_response(
             f"{self.status_code} {HTTPStatus(self.status_code).phrase}",
-            self.raw_headers,
+            [(k.decode("latin-1"), v.decode("latin-1")) for k, v in self.raw_headers],
             None,
         )
 

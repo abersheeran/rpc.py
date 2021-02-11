@@ -24,7 +24,7 @@ def wsgi_app():
     @app.register
     def yield_data(max_num: int) -> Generator[int, None, None]:
         for i in range(max_num):
-            time.sleep(0.001)
+            time.sleep(1)
             yield i
 
     return app
@@ -45,7 +45,7 @@ def asgi_app():
     @app.register
     async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
         for i in range(max_num):
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(1)
             yield i
 
     return app
@@ -53,12 +53,20 @@ def asgi_app():
 
 @pytest.fixture
 def sync_client(wsgi_app) -> Client:
-    return Client(httpx.Client(app=wsgi_app), base_url="http://testserver/")
+    httpx_client = httpx.Client(app=wsgi_app)
+    try:
+        yield Client(httpx_client, base_url="http://testserver/")
+    finally:
+        httpx_client.close()
 
 
 @pytest.fixture
 def async_client(asgi_app) -> Client:
-    return Client(httpx.AsyncClient(app=asgi_app), base_url="http://testserver/")
+    httpx_client = httpx.AsyncClient(app=asgi_app)
+    try:
+        yield Client(httpx_client, base_url="http://testserver/")
+    finally:
+        asyncio.get_event_loop().run_until_complete(httpx_client.aclose())
 
 
 def test_sync_client(sync_client):
@@ -82,7 +90,7 @@ def test_sync_client(sync_client):
         yield
 
     index = 0
-    for i in yield_data(10):
+    for i in yield_data(5):
         assert index == i
         index += 1
 
@@ -109,7 +117,7 @@ async def test_async_client(async_client):
         yield
 
     index = 0
-    async for i in yield_data(10):
+    async for i in yield_data(5):
         assert index == i
         index += 1
 

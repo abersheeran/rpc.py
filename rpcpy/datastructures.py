@@ -310,17 +310,14 @@ class Headers(typing.Mapping[str, str]):
     ) -> None:
         self._list = []  # type: typing.List[typing.Tuple[bytes, bytes]]
         if headers is not None:
-            assert raw is None, 'Cannot set both "headers" and "raw".'
-            assert scope is None, 'Cannot set both "headers" and "scope".'
             self._list = [
                 (key.lower().encode("latin-1"), value.encode("latin-1"))
                 for key, value in headers.items()
             ]
         elif raw is not None:
-            assert scope is None, 'Cannot set both "raw" and "scope".'
             self._list = raw
         elif scope is not None:
-            self._list = scope["headers"]
+            self._list = list(scope["headers"])
         elif environ is not None:
             self._list = [
                 (key.lower().replace("_", "-").encode("latin-1"), value.encode("latin-1"))
