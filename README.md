@@ -1,6 +1,6 @@
 # rpc.py
 
-![Codecov](https://img.shields.io/codecov/c/github/abersheeran/rpc.py?style=flat-square)
+[![Codecov](https://img.shields.io/codecov/c/github/abersheeran/rpc.py?style=flat-square)](https://codecov.io/gh/abersheeran/rpc.py)
 
 An fast and powerful RPC framework based on ASGI/WSGI.
 
