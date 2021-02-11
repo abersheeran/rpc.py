@@ -158,7 +158,7 @@ def test_wsgi_openapi():
 
     @rpc.register
     def query_dns(dns_type: str, host: str) -> DNS:
-        return {"dns_type": dns_type, "host": host, "result": "result"}
+        return {"dns_type": dns_type, "host": host, "result": {"record": "", "ttl": 0}}
 
     @rpc.register
     def timestamp() -> Generator[int, None, None]:
@@ -193,7 +193,7 @@ async def test_asgi_openapi():
 
     @rpc.register
     async def query_dns(dns_type: str, host: str) -> DNS:
-        return {"dns_type": dns_type, "host": host, "result": "result"}
+        return {"dns_type": dns_type, "host": host, "result": {"record": "", "ttl": 0}}
 
     @rpc.register
     async def timestamp() -> AsyncGenerator[int, None]:
@@ -201,13 +201,37 @@ async def test_asgi_openapi():
             yield int(time.time())
             await asyncio.sleep(1)
 
-    print(rpc.get_openapi_docs())
     assert rpc.get_openapi_docs() == OPENAPI_DOCS
 
     async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
         assert (await client.get("/openapi-docs")).status_code == 200
         assert (await client.get("/get-openapi-docs")).status_code == 200
 
+
+DEFAULT_PARAMETERS = [
+    {
+        "name": "content-type",
+        "in": "header",
+        "description": "At least one of serializer and content-type must be used"
+        " so that the server can know which serializer is used to parse the data.",
+        "required": True,
+        "schema": {
+            "type": "string",
+            "enum": [serializer_type for serializer_type in SERIALIZER_TYPES],
+        },
+    },
+    {
+        "name": "serializer",
+        "in": "header",
+        "description": "At least one of serializer and content-type must be used"
+        " so that the server can know which serializer is used to parse the data.",
+        "required": True,
+        "schema": {
+            "type": "string",
+            "enum": [serializer_name for serializer_name in SERIALIZER_NAMES],
+        },
+    },
+]
 
 OPENAPI_DOCS = {
     "openapi": "3.0.0",
@@ -216,34 +240,7 @@ OPENAPI_DOCS = {
         "/sayhi": {
             "post": {
                 "summary": "say hi with name",
-                "parameters": [
-                    {
-                        "name": "content-type",
-                        "in": "header",
-                        "description": "At least one of serializer and content-type must be used"
-                        " so that the server can know which serializer is used to parse the data.",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                serializer_type for serializer_type in SERIALIZER_TYPES
-                            ],
-                        },
-                    },
-                    {
-                        "name": "serializer",
-                        "in": "header",
-                        "description": "At least one of serializer and content-type must be used"
-                        " so that the server can know which serializer is used to parse the data.",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                serializer_name for serializer_name in SERIALIZER_NAMES
-                            ],
-                        },
-                    },
-                ],
+                "parameters": DEFAULT_PARAMETERS,
                 "requestBody": {
                     "required": True,
                     "content": {
@@ -280,34 +277,7 @@ OPENAPI_DOCS = {
         },
         "/query_dns": {
             "post": {
-                "parameters": [
-                    {
-                        "name": "content-type",
-                        "in": "header",
-                        "description": "At least one of serializer and content-type must be used"
-                        " so that the server can know which serializer is used to parse the data.",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                serializer_type for serializer_type in SERIALIZER_TYPES
-                            ],
-                        },
-                    },
-                    {
-                        "name": "serializer",
-                        "in": "header",
-                        "description": "At least one of serializer and content-type must be used"
-                        " so that the server can know which serializer is used to parse the data.",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                serializer_name for serializer_name in SERIALIZER_NAMES
-                            ],
-                        },
-                    },
-                ],
+                "parameters": DEFAULT_PARAMETERS,
                 "requestBody": {
                     "required": True,
                     "content": {
@@ -366,34 +336,7 @@ OPENAPI_DOCS = {
         },
         "/timestamp": {
             "post": {
-                "parameters": [
-                    {
-                        "name": "content-type",
-                        "in": "header",
-                        "description": "At least one of serializer and content-type must be used"
-                        " so that the server can know which serializer is used to parse the data.",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                serializer_type for serializer_type in SERIALIZER_TYPES
-                            ],
-                        },
-                    },
-                    {
-                        "name": "serializer",
-                        "in": "header",
-                        "description": "At least one of serializer and content-type must be used"
-                        " so that the server can know which serializer is used to parse the data.",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                serializer_name for serializer_name in SERIALIZER_NAMES
-                            ],
-                        },
-                    },
-                ],
+                "parameters": DEFAULT_PARAMETERS,
                 "responses": {
                     200: {
                         "content": {"text/event-stream": {"schema": {"type": "integer"}}},

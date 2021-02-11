@@ -55,19 +55,14 @@ def set_type_model(func: Callable) -> Callable:
     try generate request body model from type hint and default value
     """
     sig = inspect.signature(func)
-    field_definitions = {}
+    field_definitions: typing.Dict[str, typing.Any] = {}
     for name, parameter in sig.parameters.items():
-        if (
-            parameter.annotation == parameter.empty
-            and parameter.default == parameter.empty
-        ):
+        if parameter.annotation == parameter.empty:
             # raise ValueError(
             #     f"You must specify the type for the parameter {func.__name__}:{name}."
             # )
             return func  # Maybe the type hint should be mandatory? I'm not sure.
-        if parameter.annotation == parameter.empty:
-            continue  # It seems not a good idea to let pydantic automatically determine the type.
-        elif parameter.default == parameter.empty:
+        if parameter.default == parameter.empty:
             field_definitions[name] = (parameter.annotation, ...)
         else:
             field_definitions[name] = (parameter.annotation, parameter.default)
