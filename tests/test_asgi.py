@@ -4,7 +4,7 @@ import json
 import httpx
 import pytest
 
-from rpcpy.asgi import Request, Response, ClientDisconnect
+from rpcpy.asgi import ClientDisconnect, Request, Response
 
 
 def test_request_scope_interface():

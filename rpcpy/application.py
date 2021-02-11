@@ -237,7 +237,7 @@ class WsgiRPC(RPC):
             result = callback(**data)
 
         if inspect.isgenerator(result):
-            response = WsgiEventResponse(
+            response: WsgiResponse = WsgiEventResponse(
                 self.create_generator(result), headers={"serializer-base": "base64"}
             )
         else:
@@ -278,7 +278,7 @@ class AsgiRPC(RPC):
             result = callback(**data)
 
         if inspect.isasyncgen(result):
-            response = AsgiEventResponse(
+            response: AsgiResponse = AsgiEventResponse(
                 self.create_generator(result), headers={"serializer-base": "base64"}
             )
         else:

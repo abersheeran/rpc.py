@@ -52,7 +52,7 @@ def asgi_app():
 
 
 @pytest.fixture
-def sync_client(wsgi_app) -> Client:
+def sync_client(wsgi_app):
     httpx_client = httpx.Client(app=wsgi_app)
     try:
         yield Client(httpx_client, base_url="http://testserver/")
@@ -61,7 +61,7 @@ def sync_client(wsgi_app) -> Client:
 
 
 @pytest.fixture
-def async_client(asgi_app) -> Client:
+def async_client(asgi_app):
     httpx_client = httpx.AsyncClient(app=asgi_app)
     try:
         yield Client(httpx_client, base_url="http://testserver/")
