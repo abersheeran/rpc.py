@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 import time
 from typing import AsyncGenerator, Generator
@@ -31,6 +32,23 @@ def test_wsgirpc():
         assert client.get("/openapi-docs").status_code == 405
         assert client.post("/sayhi", data={"name": "Aber"}).status_code == 415
         assert client.post("/sayhi", json={"name": "Aber"}).status_code == 200
+        assert client.post("/sayhi", data=json.dumps({"name": "Aber"})).status_code == 415
+        assert (
+            client.post(
+                "/sayhi",
+                content=json.dumps({"name": "Aber"}).encode("utf8"),
+                headers={"serializer": "application/json"},
+            ).status_code
+            == 415
+        )
+        assert (
+            client.post(
+                "/sayhi",
+                content=json.dumps({"name": "Aber"}).encode("utf8"),
+                headers={"content-type": "", "serializer": "json"},
+            ).status_code
+            == 200
+        )
 
 
 @pytest.mark.asyncio
@@ -54,6 +72,20 @@ async def test_asgirpc():
         assert (await client.get("/openapi-docs")).status_code == 405
         assert (await client.post("/sayhi", data={"name": "Aber"})).status_code == 415
         assert (await client.post("/sayhi", json={"name": "Aber"})).status_code == 200
+        assert (
+            await client.post(
+                "/sayhi",
+                content=json.dumps({"name": "Aber"}).encode("utf8"),
+                headers={"serializer": "application/json"},
+            )
+        ).status_code == 415
+        assert (
+            await client.post(
+                "/sayhi",
+                content=json.dumps({"name": "Aber"}).encode("utf8"),
+                headers={"content-type": "", "serializer": "json"},
+            )
+        ).status_code == 200
 
 
 @pytest.mark.skipif("pydantic" in sys.modules, reason="Installed pydantic")

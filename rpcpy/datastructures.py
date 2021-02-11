@@ -1,4 +1,5 @@
 import typing
+from itertools import chain
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
 from rpcpy.types import Environ, Scope
@@ -322,12 +323,19 @@ class Headers(typing.Mapping[str, str]):
             self._list = scope["headers"]
         elif environ is not None:
             self._list = [
-                (
-                    key.lower().replace("_", "-").encode("latin-1"),
-                    value.encode("latin-1"),
+                (key.lower().replace("_", "-").encode("latin-1"), value.encode("latin-1"))
+                for key, value in chain(
+                    (
+                        (key[5:], value)
+                        for key, value in environ.items()
+                        if key.startswith("HTTP_")
+                    ),
+                    (
+                        (key, value)
+                        for key, value in environ.items()
+                        if key in ("CONTENT_TYPE", "CONTENT_LENGTH")
+                    ),
                 )
-                for key, value in environ.items()
-                if key.startswith("HTTP_") or key in ("CONTENT_TYPE", "CONTENT_LENGTH")
             ]
 
     @property
