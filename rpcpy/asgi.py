@@ -14,11 +14,11 @@ class ClientDisconnect(Exception):
 
 
 async def empty_receive() -> Message:
-    raise RuntimeError("Receive channel has not been made available")
+    raise NotImplementedError("Receive channel has not been made available")
 
 
 async def empty_send(message: Message) -> None:
-    raise RuntimeError("Send channel has not been made available")
+    raise NotImplementedError("Send channel has not been made available")
 
 
 class Request(Mapping):

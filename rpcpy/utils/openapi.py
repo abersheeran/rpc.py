@@ -66,7 +66,7 @@ def set_type_model(func: Callable) -> Callable:
             # )
             return func  # Maybe the type hint should be mandatory? I'm not sure.
         if parameter.annotation == parameter.empty:
-            field_definitions[name] = parameter.default
+            continue  # It seems not a good idea to let pydantic automatically determine the type.
         elif parameter.default == parameter.empty:
             field_definitions[name] = (parameter.annotation, ...)
         else:

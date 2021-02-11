@@ -78,6 +78,7 @@ class RPC(metaclass=RPCMeta):
             "info": copy.deepcopy(self.openapi) or {},
             "paths": {},
         }
+        openapi["definitions"] = definitions = {}
 
         for name, callback in self.callbacks.items():
             _ = {}
@@ -118,6 +119,7 @@ class RPC(metaclass=RPCMeta):
             body_model = getattr(callback, "__body_model__", None)
             if body_model:
                 _schema = copy.deepcopy(body_model.schema())
+                definitions.update(_schema.pop("definitions", {}))
                 del _schema["title"]
                 _["requestBody"] = {
                     "required": True,
@@ -145,6 +147,7 @@ class RPC(metaclass=RPCMeta):
                         __root__=(return_annotation, ...),
                     )
                 _schema = copy.deepcopy(resp_model.schema())
+                definitions.update(_schema.pop("definitions", {}))
                 del _schema["title"]
                 _["responses"] = {
                     200: {
@@ -191,12 +194,12 @@ class RPC(metaclass=RPCMeta):
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
                 return self.return_response_class(request)(
-                    OPENAPI_TEMPLATE, headers={"content-type": "text/html"}
+                    OPENAPI_TEMPLATE, media_type="text/html"
                 )
             elif request.url.path[len(self.prefix) :] == "get-openapi-docs":
                 return self.return_response_class(request)(
                     json.dumps(self.get_openapi_docs(), ensure_ascii=False),
-                    headers={"content-type": "application/json"},
+                    media_type="application/json",
                 )
 
         # check request method
@@ -208,7 +211,7 @@ class RPC(metaclass=RPCMeta):
             self.request_serializer = get_serializer(request.headers)
         except SerializerNotFound as exception:
             return self.return_response_class(request)(
-                str(exception), status_code=415, headers={"content-type": "text/plain"}
+                str(exception), status_code=415, media_type="text/plain"
             )
 
 

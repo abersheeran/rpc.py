@@ -28,10 +28,17 @@ def test_wsgirpc():
         async def async_sayhi(name: str) -> str:
             return f"hi {name}"
 
+    @rpc.register
+    def sayhi_without_type_hint(name):
+        return f"hi {name}"
+
     with httpx.Client(app=rpc, base_url="http://testServer/") as client:
         assert client.get("/openapi-docs").status_code == 405
         assert client.post("/sayhi", data={"name": "Aber"}).status_code == 415
         assert client.post("/sayhi", json={"name": "Aber"}).status_code == 200
+        assert (
+            client.post("/sayhi_without_type_hint", json={"name": "Aber"})
+        ).status_code == 200
         assert client.post("/sayhi", data=json.dumps({"name": "Aber"})).status_code == 415
         assert (
             client.post(
@@ -60,6 +67,10 @@ async def test_asgirpc():
     async def sayhi(name: str) -> str:
         return f"hi {name}"
 
+    @rpc.register
+    async def sayhi_without_type_hint(name):
+        return f"hi {name}"
+
     with pytest.raises(
         TypeError, match="ASGI mode can only register asynchronous functions."
     ):
@@ -72,6 +83,9 @@ async def test_asgirpc():
         assert (await client.get("/openapi-docs")).status_code == 405
         assert (await client.post("/sayhi", data={"name": "Aber"})).status_code == 415
         assert (await client.post("/sayhi", json={"name": "Aber"})).status_code == 200
+        assert (
+            await client.post("/sayhi_without_type_hint", json={"name": "Aber"})
+        ).status_code == 200
         assert (
             await client.post(
                 "/sayhi",
@@ -127,16 +141,20 @@ def test_wsgi_openapi():
     rpc = RPC(openapi={"title": "Title", "description": "Description", "version": "v1"})
 
     @rpc.register
-    def sayhi(name: str) -> str:
+    def sayhi(name: str = "Aber") -> str:
         """
         say hi with name
         """
         return f"hi {name}"
 
+    class DNSRecord(TypedDict):
+        record: str
+        ttl: int
+
     class DNS(TypedDict):
         dns_type: str
         host: str
-        result: str
+        result: DNSRecord
 
     @rpc.register
     def query_dns(dns_type: str, host: str) -> DNS:
@@ -164,13 +182,14 @@ async def test_asgi_openapi():
     )
 
     @rpc.register
-    async def sayhi(name: str) -> str:
+    async def sayhi(name: str = "Aber") -> str:
         """
         say hi with name
         """
         return f"hi {name}"
 
-    DNS = TypedDict("DNS", {"dns_type": str, "host": str, "result": str})
+    DNSRecord = TypedDict("DNSRecord", {"record": str, "ttl": int})
+    DNS = TypedDict("DNS", {"dns_type": str, "host": str, "result": DNSRecord})
 
     @rpc.register
     async def query_dns(dns_type: str, host: str) -> DNS:
@@ -182,6 +201,7 @@ async def test_asgi_openapi():
             yield int(time.time())
             await asyncio.sleep(1)
 
+    print(rpc.get_openapi_docs())
     assert rpc.get_openapi_docs() == OPENAPI_DOCS
 
     async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
@@ -231,9 +251,12 @@ OPENAPI_DOCS = {
                             "schema": {
                                 "type": "object",
                                 "properties": {
-                                    "name": {"title": "Name", "type": "string"}
+                                    "name": {
+                                        "default": "Aber",
+                                        "title": "Name",
+                                        "type": "string",
+                                    }
                                 },
-                                "required": ["name"],
                             }
                         }
                         for serializer_type in SERIALIZER_TYPES
@@ -322,10 +345,7 @@ OPENAPI_DOCS = {
                                             "title": "Host",
                                             "type": "string",
                                         },
-                                        "result": {
-                                            "title": "Result",
-                                            "type": "string",
-                                        },
+                                        "result": {"$ref": "#/definitions/DNSRecord"},
                                     },
                                     "required": ["dns_type", "host", "result"],
                                 }
@@ -387,5 +407,16 @@ OPENAPI_DOCS = {
                 },
             }
         },
+    },
+    "definitions": {
+        "DNSRecord": {
+            "title": "DNSRecord",
+            "type": "object",
+            "properties": {
+                "record": {"title": "Record", "type": "string"},
+                "ttl": {"title": "Ttl", "type": "integer"},
+            },
+            "required": ["record", "ttl"],
+        }
     },
 }
