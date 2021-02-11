@@ -1,9 +1,4 @@
-from rpcpy.datastructures import (
-    URL,
-    Headers,
-    MultiDict,
-    MutableHeaders,
-)
+from rpcpy.datastructures import URL, Headers, MultiDict, MutableHeaders
 
 
 def test_url():
