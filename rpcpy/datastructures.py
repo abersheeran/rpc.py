@@ -1,18 +1,10 @@
-import asyncio
-import tempfile
 import typing
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
 from rpcpy.types import Environ, Scope
 from rpcpy.utils import cached_property
 
-__all__ = [
-    "FormData",
-    "MutableHeaders",
-    "Headers",
-    "UploadFile",
-    "URL",
-]
+__all__ = ["MutableHeaders", "Headers", "URL"]
 
 
 class URL:
@@ -103,10 +95,6 @@ class URL:
     @property
     def port(self) -> typing.Optional[int]:
         return self.components.port
-
-    @property
-    def is_secure(self) -> bool:
-        return self.scheme in ("https", "wss")
 
     def replace(self, **kwargs: typing.Any) -> "URL":
         if (
@@ -305,86 +293,6 @@ class MultiDict(ImmutableMultiDict):
         existing_items = [(k, v) for (k, v) in self._list if k not in value.keys()]
         self._list = existing_items + value.multi_items()
         self._dict.update(value)
-
-
-class UploadFile:
-    """
-    An uploaded file included as part of the request data.
-    """
-
-    spool_max_size = 1024 * 1024
-
-    def __init__(self, filename: str, content_type: str = "") -> None:
-        self.filename = filename
-        self.content_type = content_type
-        self.file = tempfile.SpooledTemporaryFile(max_size=self.spool_max_size)
-
-    @property
-    def in_memory(self) -> bool:
-        rolled_to_disk = getattr(self.file, "_rolled", True)
-        return not rolled_to_disk
-
-    def write(self, data: bytes) -> None:
-        self.file.write(data)
-
-    async def awrite(self, data: bytes) -> None:
-        if self.in_memory:
-            self.write(data)  # type: ignore
-        else:
-            await asyncio.get_event_loop().run_in_executor(None, self.write, data)
-
-    def read(self, size: int = -1) -> bytes:
-        return self.file.read(size)
-
-    async def aread(self, size: int = -1) -> bytes:
-        if self.in_memory:
-            return self.read(size)
-        return await asyncio.get_event_loop().run_in_executor(None, self.read, size)
-
-    def seek(self, offset: int) -> None:
-        self.file.seek(offset)
-
-    async def aseek(self, offset: int) -> None:
-        if self.in_memory:
-            self.seek(offset)
-        else:
-            await asyncio.get_event_loop().run_in_executor(None, self.seek, offset)
-
-    def close(self) -> None:
-        self.file.close()
-
-    async def aclose(self) -> None:
-        if self.in_memory:
-            self.close()
-        else:
-            await asyncio.get_event_loop().run_in_executor(None, self.close)
-
-
-class FormData(ImmutableMultiDict):
-    """
-    An immutable multidict, containing both file uploads and text input.
-    """
-
-    def __init__(
-        self,
-        *args: typing.Union[
-            "FormData",
-            typing.Mapping[str, typing.Union[str, UploadFile]],
-            typing.List[typing.Tuple[str, typing.Union[str, UploadFile]]],
-        ],
-        **kwargs: typing.Union[str, UploadFile],
-    ) -> None:
-        super().__init__(*args, **kwargs)
-
-    def close(self) -> None:
-        for key, value in self.multi_items():
-            if isinstance(value, UploadFile):
-                value.close()
-
-    async def aclose(self) -> None:
-        for key, value in self.multi_items():
-            if isinstance(value, UploadFile):
-                await value.aclose()
 
 
 class Headers(typing.Mapping[str, str]):

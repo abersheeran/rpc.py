@@ -1,14 +1,8 @@
-import io
-
-import pytest
-
 from rpcpy.datastructures import (
     URL,
-    FormData,
     Headers,
     MultiDict,
     MutableHeaders,
-    UploadFile,
 )
 
 
@@ -35,6 +29,9 @@ def test_url():
     new = u.replace(hostname="example.com")
     assert new == "https://example.com:123/path/to/somewhere?abc=123#anchor"
     assert new.hostname == "example.com"
+
+    new = URL(**u.components._asdict())
+    assert new == u
 
 
 def test_url_query_params():
@@ -134,6 +131,14 @@ def test_mutable_headers():
     del h["a"]
     assert dict(h) == {"b": "4"}
     assert h.raw == [(b"b", b"4")]
+    h.update({"a": "0"})
+    assert dict(h) == {"a": "0", "b": "4"}
+    h.append("c", "8")
+    assert dict(h) == {"a": "0", "b": "4", "c": "8"}
+    h.add_vary_header("vary")
+    assert dict(h) == {"vary": "vary", "a": "0", "b": "4", "c": "8"}
+    h.add_vary_header("vary2")
+    assert dict(h) == {"vary": "vary, vary2", "a": "0", "b": "4", "c": "8"}
 
 
 def test_headers_mutablecopy():
@@ -142,44 +147,6 @@ def test_headers_mutablecopy():
     assert c.items() == [("a", "123"), ("a", "456"), ("b", "789")]
     c["a"] = "abc"
     assert c.items() == [("a", "abc"), ("b", "789")]
-
-
-class UploadFileForTest(UploadFile):
-    spool_max_size = 1024
-
-
-@pytest.mark.asyncio
-async def test_upload_file():
-    big_file = UploadFileForTest("big-file")
-    await big_file.awrite(b"big-data" * 512)
-    await big_file.awrite(b"big-data")
-    await big_file.aseek(0)
-    assert await big_file.aread(1024) == b"big-data" * 128
-    await big_file.aclose()
-
-
-def test_formdata():
-    upload = io.BytesIO(b"test")
-    form = FormData([("a", "123"), ("a", "456"), ("b", upload)])
-    assert "a" in form
-    assert "A" not in form
-    assert "c" not in form
-    assert form["a"] == "456"
-    assert form.get("a") == "456"
-    assert form.get("nope", default=None) is None
-    assert form.getlist("a") == ["123", "456"]
-    assert list(form.keys()) == ["a", "b"]
-    assert list(form.values()) == ["456", upload]
-    assert list(form.items()) == [("a", "456"), ("b", upload)]
-    assert len(form) == 2
-    assert list(form) == ["a", "b"]
-    assert dict(form) == {"a": "456", "b": upload}
-    assert (
-        repr(form) == "FormData([('a', '123'), ('a', '456'), ('b', " + repr(upload) + ")])"
-    )
-    assert FormData(form) == form
-    assert FormData({"a": "123", "b": "789"}) == FormData([("a", "123"), ("b", "789")])
-    assert FormData({"a": "123", "b": "789"}) != {"a": "123", "b": "789"}
 
 
 def test_multidict():
