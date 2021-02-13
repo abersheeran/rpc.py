@@ -17,7 +17,15 @@ from rpcpy.serializers import (
     JSONSerializer,
     get_serializer,
 )
-from rpcpy.types import Environ, Literal, Receive, Scope, Send, StartResponse, TypedDict
+from rpcpy.typing import (
+    Environ,
+    Literal,
+    Receive,
+    Scope,
+    Send,
+    StartResponse,
+    TypedDict,
+)
 from rpcpy.utils.openapi import TEMPLATE as OPENAPI_TEMPLATE
 from rpcpy.utils.openapi import (
     create_model,

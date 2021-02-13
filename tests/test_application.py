@@ -9,7 +9,7 @@ import pytest
 
 from rpcpy.application import RPC, AsgiRPC, WsgiRPC
 from rpcpy.serializers import SERIALIZER_NAMES, SERIALIZER_TYPES
-from rpcpy.types import TypedDict
+from rpcpy.typing import TypedDict
 
 
 def test_wsgirpc():

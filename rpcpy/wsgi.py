@@ -7,7 +7,7 @@ from http import HTTPStatus
 from queue import Queue
 
 from rpcpy.datastructures import URL, Headers, MutableHeaders
-from rpcpy.types import Environ, StartResponse
+from rpcpy.typing import Environ, StartResponse
 from rpcpy.utils import cached_property
 
 __all__ = ["Request", "Response", "EventResponse"]

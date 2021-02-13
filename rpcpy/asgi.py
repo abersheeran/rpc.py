@@ -3,7 +3,7 @@ import typing
 from collections.abc import Mapping
 
 from rpcpy.datastructures import URL, Headers, MutableHeaders
-from rpcpy.types import Message, Receive, Scope, Send
+from rpcpy.typing import Message, Receive, Scope, Send
 from rpcpy.utils import cached_property
 
 __all__ = ["Request", "Response", "EventResponse"]

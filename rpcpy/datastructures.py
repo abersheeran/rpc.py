@@ -2,7 +2,7 @@ import typing
 from itertools import chain
 from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit
 
-from rpcpy.types import Environ, Scope
+from rpcpy.typing import Environ, Scope
 from rpcpy.utils import cached_property
 
 __all__ = ["MutableHeaders", "Headers", "URL"]
