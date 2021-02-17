@@ -4,7 +4,6 @@ import json
 import typing
 from base64 import b64encode
 from collections.abc import AsyncGenerator, Generator
-from types import FunctionType
 
 from rpcpy.asgi import EventResponse as AsgiEventResponse
 from rpcpy.asgi import Request as AsgiRequest
@@ -39,7 +38,7 @@ from rpcpy.wsgi import Response as WsgiResponse
 
 __all__ = ["RPC", "WsgiRPC", "AsgiRPC"]
 
-Function = typing.TypeVar("Function", bound=FunctionType)
+Callable = typing.TypeVar("Callable", bound=typing.Callable)
 
 
 class RPCMeta(type):
@@ -75,7 +74,7 @@ class RPC(metaclass=RPCMeta):
         self.response_serializer = response_serializer
         self.openapi = openapi
 
-    def register(self, func: Function) -> Function:
+    def register(self, func: Callable) -> Callable:
         self.callbacks[func.__name__] = func
         set_type_model(func)
         return func
@@ -224,7 +223,7 @@ class RPC(metaclass=RPCMeta):
 
 
 class WsgiRPC(RPC):
-    def register(self, func: Function) -> Function:
+    def register(self, func: Callable) -> Callable:
         if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
             raise TypeError("WSGI mode can only register synchronization functions.")
         return super().register(func)
@@ -265,7 +264,7 @@ class WsgiRPC(RPC):
 
 
 class AsgiRPC(RPC):
-    def register(self, func: Function) -> Function:
+    def register(self, func: Callable) -> Callable:
         if not (inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)):
             raise TypeError("ASGI mode can only register asynchronous functions.")
         return super().register(func)

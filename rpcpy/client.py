@@ -2,7 +2,6 @@ import functools
 import inspect
 import typing
 from base64 import b64decode
-from types import FunctionType
 
 import httpx
 
@@ -11,7 +10,7 @@ from rpcpy.utils.openapi import validate_arguments
 
 __all__ = ["Client"]
 
-Function = typing.TypeVar("Function", bound=FunctionType)
+Callable = typing.TypeVar("Callable", bound=typing.Callable)
 
 
 class ClientMeta(type):
@@ -43,10 +42,10 @@ class Client(metaclass=ClientMeta):
         self.client = client
         self.request_serializer = request_serializer
 
-    def remote_call(self, func: Function) -> Function:
+    def remote_call(self, func: Callable) -> Callable:
         return func
 
-    def _get_url(self, func: Function) -> str:
+    def _get_url(self, func: Callable) -> str:
         return self.base_url + func.__name__
 
     def _get_content(
@@ -61,7 +60,7 @@ class AsyncClient(Client):
     if typing.TYPE_CHECKING:
         client: httpx.AsyncClient
 
-    def remote_call(self, func: Function) -> Function:
+    def remote_call(self, func: Callable) -> Callable:
         if not (inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)):
             raise TypeError(
                 "Asynchronous Client can only register asynchronous functions."
@@ -111,14 +110,14 @@ class AsyncClient(Client):
                             b64decode(data.encode("ascii"))
                         )
 
-        return typing.cast(Function, wrapper)
+        return typing.cast(Callable, wrapper)
 
 
 class SyncClient(Client):
     if typing.TYPE_CHECKING:
         client: httpx.Client
 
-    def remote_call(self, func: Function) -> Function:
+    def remote_call(self, func: Callable) -> Callable:
         if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
             raise TypeError(
                 "Synchronization Client can only register synchronization functions."
@@ -168,4 +167,4 @@ class SyncClient(Client):
                             b64decode(data.encode("ascii"))
                         )
 
-        return typing.cast(Function, wrapper)
+        return typing.cast(Callable, wrapper)
