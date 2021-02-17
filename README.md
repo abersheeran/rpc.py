@@ -44,6 +44,7 @@ from typing import AsyncGenerator
 
 import uvicorn
 from rpcpy import RPC
+from rpcpy.typing import TypedDict
 
 app = RPC(mode="ASGI")
 
@@ -64,6 +65,14 @@ async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
         yield i
 
 
+D = TypedDict("D", {"key": str, "other-key": str})
+
+
+@app.register
+async def query_dict(value: str) -> D:
+    return {"key": value, "other-key": value}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, interface="asgi3", port=65432)
 ```
@@ -79,6 +88,7 @@ from typing import Generator
 
 import uvicorn
 from rpcpy import RPC
+from rpcpy.typing import TypedDict
 
 app = RPC()
 
@@ -99,6 +109,14 @@ def yield_data(max_num: int) -> Generator[int, None, None]:
         yield i
 
 
+D = TypedDict("D", {"key": str, "other-key": str})
+
+
+@app.register
+def query_dict(value: str) -> D:
+    return {"key": value, "other-key": value}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, interface="wsgi", port=65432)
 ```
@@ -116,6 +134,7 @@ from typing import Generator
 
 import httpx
 from rpcpy.client import Client
+from rpcpy.typing import TypedDict
 
 app = Client(httpx.Client(), base_url="http://127.0.0.1:65432/")
 
@@ -133,6 +152,14 @@ def sayhi(name: str) -> str:
 @app.remote_call
 def yield_data(max_num: int) -> Generator[int, None, None]:
     yield
+
+
+D = TypedDict("D", {"key": str, "other-key": str})
+
+
+@app.remote_call
+def query_dict(value: str) -> D:
+    ...
 ```
 </details>
 
@@ -146,6 +173,7 @@ from typing import AsyncGenerator
 
 import httpx
 from rpcpy.client import Client
+from rpcpy.typing import TypedDict
 
 app = Client(httpx.AsyncClient(), base_url="http://127.0.0.1:65432/")
 
@@ -163,6 +191,14 @@ async def sayhi(name: str) -> str:
 @app.remote_call
 async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
     yield
+
+
+D = TypedDict("D", {"key": str, "other-key": str})
+
+
+@app.remote_call
+async def query_dict(value: str) -> D:
+    ...
 ```
 </details>
 
