@@ -8,6 +8,11 @@ try:
 except ImportError:  # pragma: no cover
     msgpack = None  # type: ignore
 
+try:
+    import cbor2 as chor
+except ImportError:  # pragma: no cover
+    cbor = None  # type: ignore
+
 from rpcpy.exceptions import SerializerNotFound
 
 
@@ -88,16 +93,33 @@ class MsgpackSerializer(BaseSerializer):
         return msgpack.unpackb(data, object_hook=self.default_decode)
 
 
+class CHORSerializer(BaseSerializer):
+    """
+    CHOR: https://tools.ietf.org/html/rfc7049
+    """
+
+    name = "chor"
+    content_type = "application/x-chor"
+
+    def encode(self, data: typing.Any) -> bytes:
+        return chor.dumps(data)
+
+    def decode(self, data: bytes) -> typing.Any:
+        return chor.loads(data)
+
+
 SERIALIZER_NAMES = {
     JSONSerializer.name: JSONSerializer(),
     PickleSerializer.name: PickleSerializer(),
     MsgpackSerializer.name: MsgpackSerializer(),
+    CHORSerializer.name: CHORSerializer(),
 }
 
 SERIALIZER_TYPES = {
     JSONSerializer.content_type: JSONSerializer(),
     PickleSerializer.content_type: PickleSerializer(),
     MsgpackSerializer.content_type: MsgpackSerializer(),
+    CHORSerializer.content_type: CHORSerializer(),
 }
 
 
