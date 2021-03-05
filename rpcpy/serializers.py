@@ -9,7 +9,7 @@ except ImportError:  # pragma: no cover
     msgpack = None  # type: ignore
 
 try:
-    import cbor2 as chor
+    import cbor2 as cbor
 except ImportError:  # pragma: no cover
     cbor = None  # type: ignore
 
@@ -93,33 +93,33 @@ class MsgpackSerializer(BaseSerializer):
         return msgpack.unpackb(data, object_hook=self.default_decode)
 
 
-class CHORSerializer(BaseSerializer):
+class CBORSerializer(BaseSerializer):
     """
-    CHOR: https://tools.ietf.org/html/rfc7049
+    CBOR: https://tools.ietf.org/html/rfc7049
     """
 
-    name = "chor"
-    content_type = "application/x-chor"
+    name = "cbor"
+    content_type = "application/x-cbor"
 
     def encode(self, data: typing.Any) -> bytes:
-        return chor.dumps(data)
+        return cbor.dumps(data)
 
     def decode(self, data: bytes) -> typing.Any:
-        return chor.loads(data)
+        return cbor.loads(data)
 
 
 SERIALIZER_NAMES = {
     JSONSerializer.name: JSONSerializer(),
     PickleSerializer.name: PickleSerializer(),
     MsgpackSerializer.name: MsgpackSerializer(),
-    CHORSerializer.name: CHORSerializer(),
+    CBORSerializer.name: CBORSerializer(),
 }
 
 SERIALIZER_TYPES = {
     JSONSerializer.content_type: JSONSerializer(),
     PickleSerializer.content_type: PickleSerializer(),
     MsgpackSerializer.content_type: MsgpackSerializer(),
-    CHORSerializer.content_type: CHORSerializer(),
+    CBORSerializer.content_type: CBORSerializer(),
 }
 
 

@@ -1,7 +1,7 @@
 import pytest
 
 from rpcpy.serializers import (
-    CHORSerializer,
+    CBORSerializer,
     JSONSerializer,
     MsgpackSerializer,
     PickleSerializer,
@@ -10,7 +10,7 @@ from rpcpy.serializers import (
 
 @pytest.mark.parametrize(
     "serializer",
-    [JSONSerializer(), PickleSerializer(), MsgpackSerializer(), CHORSerializer()],
+    [JSONSerializer(), PickleSerializer(), MsgpackSerializer(), CBORSerializer()],
 )
 @pytest.mark.parametrize(
     "data",
