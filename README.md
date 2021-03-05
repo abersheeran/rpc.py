@@ -22,6 +22,9 @@ pip install rpc.py[type]
 # need use msgpack to serializer
 pip install rpc.py[msgpack]
 
+# need use CBOR to serializer
+pip install rpc.py[cbor]
+
 # or install all dependencies
 pip install rpc.py[full]
 ```
