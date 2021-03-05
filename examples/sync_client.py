@@ -1,6 +1,7 @@
 from typing import Generator
 
 import httpx
+
 from rpcpy.client import Client
 from rpcpy.typing import TypedDict
 

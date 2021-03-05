@@ -1,6 +1,7 @@
 from typing import Generator
 
 import uvicorn
+
 from rpcpy import RPC
 from rpcpy.typing import TypedDict
 
