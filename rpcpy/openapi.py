@@ -68,7 +68,9 @@ def set_type_model(func: Callable) -> Callable:
             field_definitions[name] = (parameter.annotation, parameter.default)
     if field_definitions:
         try:
-            body_model = create_model(func.__name__, **field_definitions)
+            body_model: typing.Type[BaseModel] = create_model(
+                func.__name__, **field_definitions
+            )
             setattr(func, "__body_model__", body_model)
         except NotImplementedError:
             message = (
