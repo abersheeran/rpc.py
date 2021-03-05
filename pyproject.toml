@@ -35,7 +35,7 @@ typing-extensions = {version = "^3.7.4", python = "<3.8"}
 [tool.poetry.extras]
 cbor = ["cbor2"]
 client = ["httpx"]
-full = ["httpx", "pydantic", "msgpack"]
+full = ["httpx", "pydantic", "msgpack", "cbor2"]
 msgpack = ["msgpack"]
 type = ["pydantic"]
 
