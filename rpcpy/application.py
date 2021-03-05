@@ -5,9 +5,13 @@ import typing
 from base64 import b64encode
 from collections.abc import AsyncGenerator, Generator
 
-from rpcpy.asgi import EventResponse as AsgiEventResponse
-from rpcpy.asgi import Request as AsgiRequest
-from rpcpy.asgi import Response as AsgiResponse
+from baize.asgi import Request as AsgiRequest
+from baize.asgi import Response as AsgiResponse
+from baize.asgi import SendEventResponse as AsgiEventResponse
+from baize.wsgi import Request as WsgiRequest
+from baize.wsgi import Response as WsgiResponse
+from baize.wsgi import SendEventResponse as WsgiEventResponse
+
 from rpcpy.exceptions import SerializerNotFound
 from rpcpy.serializers import (
     SERIALIZER_NAMES,
@@ -25,16 +29,13 @@ from rpcpy.typing import (
     StartResponse,
     TypedDict,
 )
-from rpcpy.utils.openapi import TEMPLATE as OPENAPI_TEMPLATE
-from rpcpy.utils.openapi import (
+from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
+from rpcpy.openapi import (
     create_model,
     is_typed_dict_type,
     parse_typed_dict,
     set_type_model,
 )
-from rpcpy.wsgi import EventResponse as WsgiEventResponse
-from rpcpy.wsgi import Request as WsgiRequest
-from rpcpy.wsgi import Response as WsgiResponse
 
 __all__ = ["RPC", "WsgiRPC", "AsgiRPC"]
 
@@ -211,7 +212,7 @@ class RPC(metaclass=RPCMeta):
 
         # check request method
         if request.method != "POST":
-            return self.return_response_class(request)(status_code=405)
+            return self.return_response_class(request)(b"", status_code=405)
 
         # check serializer
         try:
@@ -232,7 +233,9 @@ class WsgiRPC(RPC):
         self, generator: typing.Generator
     ) -> typing.Generator[str, None, None]:
         for data in generator:
-            yield b64encode(self.response_serializer.encode(data)).decode("ascii")
+            yield {
+                "data": b64encode(self.response_serializer.encode(data)).decode("ascii")
+            }
 
     def on_call(self, request: WsgiRequest) -> WsgiResponse:
         data = self.request_serializer.decode(request.body)
@@ -273,7 +276,9 @@ class AsgiRPC(RPC):
         self, generator: typing.AsyncGenerator
     ) -> typing.AsyncGenerator[str, None]:
         async for data in generator:
-            yield b64encode(self.response_serializer.encode(data)).decode("ascii")
+            yield {
+                "data": b64encode(self.response_serializer.encode(data)).decode("ascii")
+            }
 
     async def on_call(self, request: AsgiRequest) -> AsgiResponse:
         data = self.request_serializer.decode(await request.body)
