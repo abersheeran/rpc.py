@@ -30,9 +30,9 @@ jobs:
           python -m pip install --upgrade pip poetry
           poetry config virtualenvs.create false --local
           poetry install -E full
-      - name: Test with pytest
+      - name: Static type and format checking
         run: |
-          python script/test.py
+          python script/check.py
       - name: Generate coverage report
         run: |
           pytest --cov=./ --cov-report=xml
@@ -49,9 +49,6 @@ jobs:
       - name: Uninstall pydantic
         run: |
           pip uninstall -y pydantic
-      - name: Test with pytest
-        run: |
-          python script/test.py
       - name: Generate coverage report
         run: |
           pytest --cov=./ --cov-report=xml
