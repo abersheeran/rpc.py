@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator, Generator
 from baize.asgi import Request as AsgiRequest
 from baize.asgi import Response as AsgiResponse
 from baize.asgi import SendEventResponse as AsgiEventResponse
+from baize.typing import ASGIApp, ServerSentEvent, WSGIApp
 from baize.wsgi import Request as WsgiRequest
 from baize.wsgi import Response as WsgiResponse
 from baize.wsgi import SendEventResponse as WsgiEventResponse
@@ -231,13 +232,13 @@ class WsgiRPC(RPC):
 
     def create_generator(
         self, generator: typing.Generator
-    ) -> typing.Generator[str, None, None]:
+    ) -> typing.Generator[ServerSentEvent, None, None]:
         for data in generator:
             yield {
                 "data": b64encode(self.response_serializer.encode(data)).decode("ascii")
             }
 
-    def on_call(self, request: WsgiRequest) -> WsgiResponse:
+    def on_call(self, request: WsgiRequest) -> WSGIApp:
         data = self.request_serializer.decode(request.body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
@@ -246,8 +247,9 @@ class WsgiRPC(RPC):
         else:
             result = callback(**data)
 
+        response: typing.Union[WsgiEventResponse, WsgiResponse]
         if inspect.isgenerator(result):
-            response: WsgiResponse = WsgiEventResponse(
+            response = WsgiEventResponse(
                 self.create_generator(result), headers={"serializer-base": "base64"}
             )
         else:
@@ -274,13 +276,13 @@ class AsgiRPC(RPC):
 
     async def create_generator(
         self, generator: typing.AsyncGenerator
-    ) -> typing.AsyncGenerator[str, None]:
+    ) -> typing.AsyncGenerator[ServerSentEvent, None]:
         async for data in generator:
             yield {
                 "data": b64encode(self.response_serializer.encode(data)).decode("ascii")
             }
 
-    async def on_call(self, request: AsgiRequest) -> AsgiResponse:
+    async def on_call(self, request: AsgiRequest) -> ASGIApp:
         data = self.request_serializer.decode(await request.body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
@@ -289,8 +291,9 @@ class AsgiRPC(RPC):
         else:
             result = callback(**data)
 
+        response: typing.Union[AsgiEventResponse, AsgiResponse]
         if inspect.isasyncgen(result):
-            response: AsgiResponse = AsgiEventResponse(
+            response = AsgiEventResponse(
                 self.create_generator(result), headers={"serializer-base": "base64"}
             )
         else:
