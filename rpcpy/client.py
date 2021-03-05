@@ -5,8 +5,8 @@ from base64 import b64decode
 
 import httpx
 
-from rpcpy.serializers import BaseSerializer, JSONSerializer, get_serializer
 from rpcpy.openapi import validate_arguments
+from rpcpy.serializers import BaseSerializer, JSONSerializer, get_serializer
 
 __all__ = ["Client"]
 

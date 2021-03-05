@@ -13,6 +13,13 @@ from baize.wsgi import Response as WsgiResponse
 from baize.wsgi import SendEventResponse as WsgiEventResponse
 
 from rpcpy.exceptions import SerializerNotFound
+from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
+from rpcpy.openapi import (
+    create_model,
+    is_typed_dict_type,
+    parse_typed_dict,
+    set_type_model,
+)
 from rpcpy.serializers import (
     SERIALIZER_NAMES,
     SERIALIZER_TYPES,
@@ -28,13 +35,6 @@ from rpcpy.typing import (
     Send,
     StartResponse,
     TypedDict,
-)
-from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
-from rpcpy.openapi import (
-    create_model,
-    is_typed_dict_type,
-    parse_typed_dict,
-    set_type_model,
 )
 
 __all__ = ["RPC", "WsgiRPC", "AsgiRPC"]
