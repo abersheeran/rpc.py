@@ -2,9 +2,9 @@
 
 [![Codecov](https://img.shields.io/codecov/c/github/abersheeran/rpc.py?style=flat-square)](https://codecov.io/gh/abersheeran/rpc.py)
 
-An fast and powerful RPC framework based on ASGI/WSGI.
+An fast and powerful RPC framework based on ASGI/WSGI. Based on WSGI/ASGI, you can deploy the rpc.py server to any server and use http2 to get better performance. And based on httpx's support for multiple http protocols, the client can also use http/1.0, http/1.1 or http2.
 
-Based on WSGI/ASGI, you can deploy the rpc.py server to any server and use http2 to get better performance.
+You can freely use ordinary functions and asynchronous functions for one-time response. You can also use generator functions or asynchronous generator functions to stream responses.
 
 ## Install
 
