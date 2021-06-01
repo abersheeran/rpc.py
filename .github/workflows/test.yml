@@ -6,9 +6,15 @@ on:
       - master
     tags:
       - "*"
+    paths:
+      - "**.py"
+      - "!rpcpy/__version__.py"
   pull_request:
     branches:
       - master
+    paths:
+      - "**.py"
+      - "!rpcpy/__version__.py"
 
 jobs:
   Tests:
