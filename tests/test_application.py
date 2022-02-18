@@ -43,7 +43,9 @@ def test_wsgirpc():
         assert (
             client.post("/sayhi_without_type_hint", json={"name": "Aber"})
         ).status_code == 200
-        assert client.post("/sayhi", data=json.dumps({"name": "Aber"})).status_code == 415
+        assert (
+            client.post("/sayhi", content=json.dumps({"name": "Aber"})).status_code == 415
+        )
         assert (
             client.post(
                 "/sayhi",
