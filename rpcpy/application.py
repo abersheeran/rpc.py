@@ -1,16 +1,31 @@
 import copy
 import inspect
 import json
+import sys
 import typing
 from base64 import b64encode
 from collections.abc import AsyncGenerator, Generator
 
+if sys.version_info[:2] < (3, 8):
+    from typing_extensions import Literal, TypedDict
+else:
+    from typing import Literal, TypedDict
+
+from baize.asgi import PlainTextResponse as AsgiResponse
 from baize.asgi import Request as AsgiRequest
-from baize.asgi import Response as AsgiResponse
 from baize.asgi import SendEventResponse as AsgiEventResponse
-from baize.typing import ASGIApp, ServerSentEvent, WSGIApp
+from baize.typing import (
+    ASGIApp,
+    Environ,
+    Receive,
+    Scope,
+    Send,
+    ServerSentEvent,
+    StartResponse,
+    WSGIApp,
+)
+from baize.wsgi import PlainTextResponse as WsgiResponse
 from baize.wsgi import Request as WsgiRequest
-from baize.wsgi import Response as WsgiResponse
 from baize.wsgi import SendEventResponse as WsgiEventResponse
 
 from rpcpy.exceptions import SerializerNotFound
@@ -27,15 +42,6 @@ from rpcpy.serializers import (
     BaseSerializer,
     JSONSerializer,
     get_serializer,
-)
-from rpcpy.typing import (
-    Environ,
-    Literal,
-    Receive,
-    Scope,
-    Send,
-    StartResponse,
-    TypedDict,
 )
 
 __all__ = ["RPC", "WsgiRPC", "AsgiRPC"]
@@ -150,6 +156,8 @@ class RPC(metaclass=RPCMeta):
                     return_annotation = return_annotation.__args__[0]
                 if is_typed_dict_type(return_annotation):
                     resp_model = parse_typed_dict(return_annotation)
+                elif return_annotation is None:
+                    resp_model = create_model(callback.__name__ + "-return")
                 else:
                     resp_model = create_model(
                         callback.__name__ + "-return",
@@ -239,7 +247,11 @@ class WsgiRPC(RPC):
             }
 
     def on_call(self, request: WsgiRequest) -> WSGIApp:
-        data = self.request_serializer.decode(request.body)
+        body = request.body
+        if not body:
+            data = {}
+        else:
+            data = self.request_serializer.decode(body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
@@ -283,7 +295,11 @@ class AsgiRPC(RPC):
             }
 
     async def on_call(self, request: AsgiRequest) -> ASGIApp:
-        data = self.request_serializer.decode(await request.body)
+        body = await request.body
+        if not body:
+            data = {}
+        else:
+            data = self.request_serializer.decode(body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):

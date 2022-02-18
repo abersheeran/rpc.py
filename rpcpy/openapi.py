@@ -38,7 +38,6 @@ try:
 
         return change_exception  # type: ignore
 
-
 except ImportError:
 
     def create_model(*args, **kwargs):  # type: ignore
@@ -83,7 +82,11 @@ def set_type_model(func: Callable) -> Callable:
 
 
 def is_typed_dict_type(type_) -> bool:
-    return issubclass(type_, dict) and getattr(type_, "__annotations__", False)
+    return (
+        isinstance(type_, type)
+        and issubclass(type_, dict)
+        and getattr(type_, "__annotations__", False)
+    )
 
 
 def parse_typed_dict(typed_dict) -> typing.Type[BaseModel]:

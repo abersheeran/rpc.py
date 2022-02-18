@@ -4,12 +4,16 @@ import sys
 import time
 from typing import AsyncGenerator, Generator
 
+if sys.version_info[:2] < (3, 8):
+    from typing_extensions import TypedDict
+else:
+    from typing import TypedDict
+
 import httpx
 import pytest
 
 from rpcpy.application import RPC, AsgiRPC, WsgiRPC
 from rpcpy.serializers import SERIALIZER_NAMES, SERIALIZER_TYPES
-from rpcpy.typing import TypedDict
 
 
 def test_wsgirpc():
@@ -39,7 +43,9 @@ def test_wsgirpc():
         assert (
             client.post("/sayhi_without_type_hint", json={"name": "Aber"})
         ).status_code == 200
-        assert client.post("/sayhi", data=json.dumps({"name": "Aber"})).status_code == 415
+        assert (
+            client.post("/sayhi", content=json.dumps({"name": "Aber"})).status_code == 415
+        )
         assert (
             client.post(
                 "/sayhi",
@@ -141,6 +147,10 @@ def test_wsgi_openapi():
     rpc = RPC(openapi={"title": "Title", "description": "Description", "version": "v1"})
 
     @rpc.register
+    def none() -> None:
+        return None
+
+    @rpc.register
     def sayhi(name: str = "Aber") -> str:
         """
         say hi with name
@@ -180,6 +190,10 @@ async def test_asgi_openapi():
         mode="ASGI",
         openapi={"title": "Title", "description": "Description", "version": "v1"},
     )
+
+    @rpc.register
+    async def none() -> None:
+        return None
 
     @rpc.register
     async def sayhi(name: str = "Aber") -> str:
@@ -237,6 +251,29 @@ OPENAPI_DOCS = {
     "openapi": "3.0.0",
     "info": {"title": "Title", "description": "Description", "version": "v1"},
     "paths": {
+        "/none": {
+            "post": {
+                "parameters": DEFAULT_PARAMETERS,
+                "responses": {
+                    200: {
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object", "properties": {}},
+                            }
+                        },
+                        "headers": {
+                            "serializer": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": ["json"],
+                                },
+                                "description": "Serializer Name",
+                            }
+                        },
+                    }
+                },
+            }
+        },
         "/sayhi": {
             "post": {
                 "summary": "say hi with name",

@@ -53,7 +53,11 @@ class Client(metaclass=ClientMeta):
     ) -> bytes:
         sig = inspect.signature(func)
         bound_values = sig.bind(*args, **kwargs)
-        return self.request_serializer.encode(dict(**bound_values.arguments))
+        parameters = dict(**bound_values.arguments)
+        if parameters:
+            return self.request_serializer.encode(parameters)
+        else:
+            return b""
 
 
 class AsyncClient(Client):

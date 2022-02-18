@@ -1,9 +1,9 @@
 from typing import AsyncGenerator
 
 import uvicorn
+from typing_extensions import TypedDict
 
 from rpcpy import RPC
-from rpcpy.typing import TypedDict
 
 app = RPC(mode="ASGI")
 
