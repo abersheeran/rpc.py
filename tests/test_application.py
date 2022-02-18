@@ -147,6 +147,10 @@ def test_wsgi_openapi():
     rpc = RPC(openapi={"title": "Title", "description": "Description", "version": "v1"})
 
     @rpc.register
+    def none() -> None:
+        return None
+
+    @rpc.register
     def sayhi(name: str = "Aber") -> str:
         """
         say hi with name
@@ -186,6 +190,10 @@ async def test_asgi_openapi():
         mode="ASGI",
         openapi={"title": "Title", "description": "Description", "version": "v1"},
     )
+
+    @rpc.register
+    async def none() -> None:
+        return None
 
     @rpc.register
     async def sayhi(name: str = "Aber") -> str:
@@ -243,6 +251,29 @@ OPENAPI_DOCS = {
     "openapi": "3.0.0",
     "info": {"title": "Title", "description": "Description", "version": "v1"},
     "paths": {
+        "/none": {
+            "post": {
+                "parameters": DEFAULT_PARAMETERS,
+                "responses": {
+                    200: {
+                        "content": {
+                            "application/json": {
+                                "schema": {"type": "object", "properties": {}},
+                            }
+                        },
+                        "headers": {
+                            "serializer": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": ["json"],
+                                },
+                                "description": "Serializer Name",
+                            }
+                        },
+                    }
+                },
+            }
+        },
         "/sayhi": {
             "post": {
                 "summary": "say hi with name",
