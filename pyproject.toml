@@ -25,11 +25,11 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 
-baize = "^0.1.0"
+baize = "^0.14.0"
 cbor2 = {version = "^5.2.0", optional = true}
 httpx = {version = "^0.16.0", optional = true}# for client and test
 msgpack = {version = "^1.0.0", optional = true}
-pydantic = {version = "^1.7", optional = true}# for openapi docs
+pydantic = {version = "^1.8", optional = true}# for openapi docs
 typing-extensions = {version = "^3.7.4", python = "<3.8"}
 
 [tool.poetry.extras]

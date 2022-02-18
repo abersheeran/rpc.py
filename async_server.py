@@ -5,7 +5,9 @@ from typing_extensions import TypedDict
 
 from rpcpy import RPC
 
-app = RPC(mode="ASGI")
+app = RPC(
+    mode="ASGI", openapi={"title": "TITLE", "description": "DESCRIPTION", "version": "v1"}
+)
 
 
 @app.register

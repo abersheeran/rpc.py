@@ -4,12 +4,16 @@ import sys
 import time
 from typing import AsyncGenerator, Generator
 
+if sys.version_info[:2] < (3, 8):
+    from typing_extensions import TypedDict
+else:
+    from typing import TypedDict
+
 import httpx
 import pytest
 
 from rpcpy.application import RPC, AsgiRPC, WsgiRPC
 from rpcpy.serializers import SERIALIZER_NAMES, SERIALIZER_TYPES
-from rpcpy.typing import TypedDict
 
 
 def test_wsgirpc():

@@ -1,9 +1,9 @@
 from typing import AsyncGenerator
 
 import httpx
+from typing_extensions import TypedDict
 
 from rpcpy.client import Client
-from rpcpy.typing import TypedDict
 
 app = Client(httpx.AsyncClient(), base_url="http://127.0.0.1:65432/")
 

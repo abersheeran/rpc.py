@@ -44,10 +44,10 @@ pip install git+https://github.com/abersheeran/rpc.py@setup.py
 
 ```python
 from typing import AsyncGenerator
+from typing_extensions import TypedDict
 
 import uvicorn
 from rpcpy import RPC
-from rpcpy.typing import TypedDict
 
 app = RPC(mode="ASGI")
 
@@ -88,10 +88,10 @@ OR
 
 ```python
 from typing import Generator
+from typing_extensions import TypedDict
 
 import uvicorn
 from rpcpy import RPC
-from rpcpy.typing import TypedDict
 
 app = RPC()
 
@@ -134,10 +134,10 @@ Notice: Regardless of whether the server uses the WSGI mode or the ASGI mode, th
 
 ```python
 from typing import Generator
+from typing_extensions import TypedDict
 
 import httpx
 from rpcpy.client import Client
-from rpcpy.typing import TypedDict
 
 app = Client(httpx.Client(), base_url="http://127.0.0.1:65432/")
 
@@ -173,10 +173,10 @@ OR
 
 ```python
 from typing import AsyncGenerator
+from typing_extensions import TypedDict
 
 import httpx
 from rpcpy.client import Client
-from rpcpy.typing import TypedDict
 
 app = Client(httpx.AsyncClient(), base_url="http://127.0.0.1:65432/")
 

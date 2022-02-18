@@ -1,9 +1,9 @@
 from typing import Generator
 
 import httpx
+from typing_extensions import TypedDict
 
 from rpcpy.client import Client
-from rpcpy.typing import TypedDict
 
 app = Client(httpx.Client(), base_url="http://127.0.0.1:65432/")
 
