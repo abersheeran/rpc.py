@@ -62,6 +62,7 @@ def test_wsgirpc():
             ).status_code
             == 200
         )
+        assert client.post("/non-exists", json={"name": "Aber"}).status_code == 404
 
 
 @pytest.mark.asyncio
@@ -106,6 +107,7 @@ async def test_asgirpc():
                 headers={"content-type": "", "serializer": "json"},
             )
         ).status_code == 200
+        assert (await client.post("/non-exists", json={"name": "Aber"})).status_code == 404
 
 
 @pytest.mark.skipif("pydantic" in sys.modules, reason="Installed pydantic")

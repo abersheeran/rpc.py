@@ -207,29 +207,31 @@ class RPC(metaclass=RPCMeta):
         """
         Preprocess request
         """
+        response_class = self.return_response_class(request)
+
         # try return openapi
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
-                return self.return_response_class(request)(
-                    OPENAPI_TEMPLATE, media_type="text/html"
-                )
+                return response_class(OPENAPI_TEMPLATE, media_type="text/html")
             elif request.url.path[len(self.prefix) :] == "get-openapi-docs":
-                return self.return_response_class(request)(
+                return response_class(
                     json.dumps(self.get_openapi_docs(), ensure_ascii=False),
                     media_type="application/json",
                 )
 
         # check request method
         if request.method != "POST":
-            return self.return_response_class(request)(b"", status_code=405)
+            return response_class(b"", status_code=405)
 
         # check serializer
         try:
-            self.request_serializer = get_serializer(request.headers)
+            get_serializer(request.headers)
         except SerializerNotFound as exception:
-            return self.return_response_class(request)(
-                str(exception), status_code=415, media_type="text/plain"
-            )
+            return response_class(str(exception), status_code=415)
+
+        # check callback
+        if request.url.path[len(self.prefix) :] not in self.callbacks:
+            return response_class(b"", status_code=404)
 
 
 class WsgiRPC(RPC):
@@ -251,7 +253,7 @@ class WsgiRPC(RPC):
         if not body:
             data = {}
         else:
-            data = self.request_serializer.decode(body)
+            data = get_serializer(request.headers).decode(body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
@@ -299,7 +301,7 @@ class AsgiRPC(RPC):
         if not body:
             data = {}
         else:
-            data = self.request_serializer.decode(body)
+            data = get_serializer(request.headers).decode(body)
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
