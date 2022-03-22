@@ -205,6 +205,31 @@ async def query_dict(value: str) -> D:
 ```
 </details>
 
+### Server as client
+
+You can also write two copies of code in one place. Just make sure that `server.register` is executed before `client.remote_call`.
+
+```python
+import httpx
+from rpcpy import RPC
+from rpcpy.client import Client
+
+server = RPC()
+client = Client(httpx.Client(), base_url="http://127.0.0.1:65432/")
+
+
+@client.remote_call
+@server.register
+def sayhi(name: str) -> str:
+    return f"hi {name}"
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, interface="wsgi", port=65432)
+```
+
 ### Sub-route
 
 If you need to deploy the rpc.py server under `example.com/sub-route/*`, you need to set `RPC(prefix="/sub-route/")` and modify the `Client(base_path=https://example.com/sub-route/)`.
