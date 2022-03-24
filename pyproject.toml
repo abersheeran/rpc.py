@@ -29,8 +29,8 @@ baize = "^0.15.0"
 cbor2 = {version = "^5.2.0", optional = true}
 httpx = {version = "^0.22.0", optional = true}# for client and test
 msgpack = {version = "^1.0.0", optional = true}
-pydantic = {version = "^1.8", optional = true}# for openapi docs
-typing-extensions = {version = "^3.7.4", python = "<3.8"}
+pydantic = {version = "^1.9", optional = true}# for openapi docs
+typing-extensions = {version = "*", python = "<3.8"}
 
 [tool.poetry.extras]
 cbor = ["cbor2"]
@@ -44,9 +44,9 @@ black = {version = "*", allow-prereleases = true}
 flake8 = "*"
 isort = "*"
 mypy = "*"
-pytest = "^5.4.3"
-pytest-asyncio = "^0.14.0"
-pytest-cov = "^2.11.1"
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
 
 [tool.black]
 line-length = 91
