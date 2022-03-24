@@ -46,6 +46,11 @@ except ImportError:
     def validate_arguments(function: Callable) -> Callable:
         return function
 
+    class ValidationError(Exception):  # type: ignore
+        """
+        Just for import
+        """
+
     BaseModel = type("BaseModel", (), {})  # type: ignore
 
 

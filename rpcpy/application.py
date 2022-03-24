@@ -31,6 +31,7 @@ from baize.wsgi import SendEventResponse as WsgiEventResponse
 from rpcpy.exceptions import SerializerNotFound
 from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
 from rpcpy.openapi import (
+    ValidationError,
     create_model,
     is_typed_dict_type,
     parse_typed_dict,
@@ -74,7 +75,7 @@ class RPC(metaclass=RPCMeta):
         mode: Literal["WSGI", "ASGI"] = "WSGI",
         prefix: str = "/",
         response_serializer: BaseSerializer = JSONSerializer(),
-        openapi: OpenAPI = None,
+        openapi: typing.Optional[OpenAPI] = None,
     ) -> None:
         assert prefix.startswith("/") and prefix.endswith("/")
         self.callbacks: typing.Dict[str, typing.Callable] = {}
@@ -257,7 +258,13 @@ class WsgiRPC(RPC):
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
-            result = callback(**getattr(callback, "__body_model__")(**data).dict())
+            try:
+                model = getattr(callback, "__body_model__")(**data)
+            except ValidationError as error:
+                return WsgiResponse(
+                    error.json(), status_code=422, media_type="application/json"
+                )
+            result = callback(**model.dict())
         else:
             result = callback(**data)
 
@@ -305,7 +312,13 @@ class AsgiRPC(RPC):
 
         callback = self.callbacks[request.url.path[len(self.prefix) :]]
         if hasattr(callback, "__body_model__"):
-            result = callback(**getattr(callback, "__body_model__")(**data).dict())
+            try:
+                model = getattr(callback, "__body_model__")(**data)
+            except ValidationError as error:
+                return AsgiResponse(
+                    error.json(), status_code=422, media_type="application/json"
+                )
+            result = callback(**model.dict())
         else:
             result = callback(**data)
 
