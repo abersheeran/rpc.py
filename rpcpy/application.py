@@ -31,11 +31,11 @@ from baize.wsgi import SendEventResponse as WsgiEventResponse
 from rpcpy.exceptions import SerializerNotFound
 from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
 from rpcpy.openapi import (
+    ValidationError,
     create_model,
     is_typed_dict_type,
     parse_typed_dict,
     set_type_model,
-    ValidationError,
 )
 from rpcpy.serializers import (
     SERIALIZER_NAMES,
