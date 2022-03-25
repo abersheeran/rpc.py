@@ -211,10 +211,11 @@ class ServerSentEventsParser:
             return event
 
         if line[0] == ":":  # ignore comment
-            return
+            return None
 
         key, value = line.split(":", maxsplit=1)
         if key == "data" and key in self.message:
-            self.message[key] = f"{self.message[key]}\n{value}"
+            self.message[key] = f"{self.message[key]}\n{value}"  # type: ignore
         else:
-            self.message[key] = value
+            self.message[key] = value  # type: ignore
+        return None

@@ -16,13 +16,21 @@ else:
 from baize.asgi import PlainTextResponse as AsgiResponse
 from baize.asgi import Request as AsgiRequest
 from baize.asgi import SendEventResponse as AsgiEventResponse
-from baize.exceptions import HTTPException
-from baize.typing import Environ, Receive, Scope, Send, ServerSentEvent, StartResponse
+from baize.typing import (
+    ASGIApp,
+    Environ,
+    Receive,
+    Scope,
+    Send,
+    ServerSentEvent,
+    StartResponse,
+    WSGIApp,
+)
 from baize.wsgi import PlainTextResponse as WsgiResponse
 from baize.wsgi import Request as WsgiRequest
 from baize.wsgi import SendEventResponse as WsgiEventResponse
 
-from rpcpy.exceptions import SerializerNotFound
+from rpcpy.exceptions import CallbackError, SerializerNotFound
 from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
 from rpcpy.openapi import (
     ValidationError,
@@ -220,18 +228,18 @@ class RPC(metaclass=RPCMeta):
         """
         # check request method
         if request.method != "POST":
-            raise HTTPException(content=b"", status_code=405)
+            raise CallbackError(content="", status_code=405)
 
         # check serializer
         try:
             serializer = get_serializer(request.headers)
         except SerializerNotFound as exception:
-            raise HTTPException(content=str(exception), status_code=415)
+            raise CallbackError(content=str(exception), status_code=415)
 
         # check callback
         callback = self.callbacks.get(request.url.path[len(self.prefix) :], None)
         if callback is None:
-            raise HTTPException(content=b"", status_code=404)
+            raise CallbackError(content="", status_code=404)
 
         return serializer, callback
 
@@ -250,7 +258,7 @@ class RPC(metaclass=RPCMeta):
             try:
                 model = getattr(callback, "__body_model__")(**data)
             except ValidationError as exception:
-                raise HTTPException(
+                raise CallbackError(
                     status_code=422,
                     headers={"content-type": "application/json"},
                     content=exception.json(),
@@ -293,6 +301,7 @@ class WsgiRPC(RPC):
         callback: typing.Callable[..., typing.Any],
         data: typing.Dict[str, typing.Any],
     ) -> WsgiResponse | WsgiEventResponse:
+        response: WsgiResponse | WsgiEventResponse
         try:
             result = callback(**data)
         except Exception as exception:
@@ -321,14 +330,14 @@ class WsgiRPC(RPC):
         self, environ: Environ, start_response: StartResponse
     ) -> typing.Iterable[bytes]:
         request = WsgiRequest(environ)
-        response = self.respond_openapi(request)
+        response: WSGIApp | None = self.respond_openapi(request)
         if response is None:
             try:
                 serializer, callback = self.preprocess(request)
                 data = self.preprocess_body(serializer, callback, request.body)
-            except HTTPException as exception:
+            except CallbackError as exception:
                 response = WsgiResponse(
-                    content=exception.content,
+                    content=exception.content or b"",
                     status_code=exception.status_code,
                     headers=exception.headers,
                 )
@@ -366,6 +375,7 @@ class AsgiRPC(RPC):
         callback: typing.Callable[..., typing.Awaitable[typing.Any]],
         data: typing.Dict[str, typing.Any],
     ) -> AsgiResponse | AsgiEventResponse:
+        response: AsgiResponse | AsgiEventResponse
         try:
             result = await callback(**data)
         except Exception as exception:
@@ -392,14 +402,14 @@ class AsgiRPC(RPC):
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         request = AsgiRequest(scope, receive, send)
-        response = self.respond_openapi(request)
+        response: ASGIApp | None = self.respond_openapi(request)
         if response is None:
             try:
                 serializer, callback = self.preprocess(request)
                 data = self.preprocess_body(serializer, callback, await request.body)
-            except HTTPException as exception:
+            except CallbackError as exception:
                 response = AsgiResponse(
-                    content=exception.content,
+                    content=exception.content or b"",
                     status_code=exception.status_code,
                     headers=exception.headers,
                 )
