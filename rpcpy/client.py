@@ -51,7 +51,7 @@ class Client(metaclass=ClientMeta):
     def remote_call(self, func: Callable) -> Callable:
         return func
 
-    def _get_url(self, func: Callable) -> str:
+    def _get_url(self, func: typing.Callable) -> str:
         return self.base_url + func.__name__
 
     def _get_content(
