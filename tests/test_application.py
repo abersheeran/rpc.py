@@ -57,6 +57,14 @@ def test_wsgirpc():
         assert (
             client.post(
                 "/sayhi",
+                content=json.dumps({"name0": "Aber"}).encode("utf8"),
+                headers={"content-type": "", "serializer": "json"},
+            ).status_code
+            == 422
+        )
+        assert (
+            client.post(
+                "/sayhi",
                 content=json.dumps({"name": "Aber"}).encode("utf8"),
                 headers={"content-type": "", "serializer": "json"},
             ).status_code
@@ -100,6 +108,13 @@ async def test_asgirpc():
                 headers={"serializer": "application/json"},
             )
         ).status_code == 415
+        assert (
+            await client.post(
+                "/sayhi",
+                content=json.dumps({"name0": "Aber"}).encode("utf8"),
+                headers={"content-type": "", "serializer": "json"},
+            )
+        ).status_code == 422
         assert (
             await client.post(
                 "/sayhi",

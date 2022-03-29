@@ -377,7 +377,10 @@ class AsgiRPC(RPC):
     ) -> AsgiResponse | AsgiEventResponse:
         response: AsgiResponse | AsgiEventResponse
         try:
-            result = await callback(**data)
+            if inspect.isasyncgenfunction(callback):
+                result = callback(**data)
+            else:
+                result = await callback(**data)
         except Exception as exception:
             message = self.format_exception(exception)
             response = AsgiResponse(

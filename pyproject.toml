@@ -64,6 +64,7 @@ omit = ["*/.venv/*", "*/tests/*"]
 exclude_lines = [
   "pragma: no cover",
   "raise NotImplementedError",
+  "raise RuntimeError",
   "if False:",
   "assert False",
   "if typing.TYPE_CHECKING:",

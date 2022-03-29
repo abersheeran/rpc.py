@@ -120,7 +120,7 @@ class AsyncClient(Client):
                     serializer = get_serializer(resp.headers)
                     async for line in resp.aiter_lines():
                         event = sse_parser.feed(line)
-                        if event is None:
+                        if not event:
                             continue
 
                         if event["event"] == "yield":
@@ -128,7 +128,11 @@ class AsyncClient(Client):
                                 b64decode(event["data"].encode("ascii"))
                             )
                         elif event["event"] == "exception":
-                            raise RemoteCallError(event["data"])
+                            raise RemoteCallError(
+                                serializer.decode(b64decode(event["data"].encode("ascii")))
+                            )
+                        else:
+                            raise RuntimeError(f"Unknown event type: {event['event']}")
 
         return typing.cast(Callable, wrapper)
 
@@ -187,7 +191,7 @@ class SyncClient(Client):
                     serializer = get_serializer(resp.headers)
                     for line in resp.iter_lines():
                         event = sse_parser.feed(line)
-                        if event is None:
+                        if not event:
                             continue
 
                         if event["event"] == "yield":
@@ -195,7 +199,11 @@ class SyncClient(Client):
                                 b64decode(event["data"].encode("ascii"))
                             )
                         elif event["event"] == "exception":
-                            raise RemoteCallError(event["data"])
+                            raise RemoteCallError(
+                                serializer.decode(b64decode(event["data"].encode("ascii")))
+                            )
+                        else:
+                            raise RuntimeError(f"Unknown event type: {event['event']}")
 
         return typing.cast(Callable, wrapper)
 
@@ -213,7 +221,7 @@ class ServerSentEventsParser:
         if line[0] == ":":  # ignore comment
             return None
 
-        key, value = line.split(":", maxsplit=1)
+        key, value = map(str.strip, line.split(":", maxsplit=1))
         if key == "data" and key in self.message:
             self.message[key] = f"{self.message[key]}\n{value}"  # type: ignore
         else:
