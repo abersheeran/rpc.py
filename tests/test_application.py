@@ -57,14 +57,6 @@ def test_wsgirpc():
         assert (
             client.post(
                 "/sayhi",
-                content=json.dumps({"name0": "Aber"}).encode("utf8"),
-                headers={"content-type": "", "serializer": "json"},
-            ).status_code
-            == 422
-        )
-        assert (
-            client.post(
-                "/sayhi",
                 content=json.dumps({"name": "Aber"}).encode("utf8"),
                 headers={"content-type": "", "serializer": "json"},
             ).status_code
@@ -108,13 +100,6 @@ async def test_asgirpc():
                 headers={"serializer": "application/json"},
             )
         ).status_code == 415
-        assert (
-            await client.post(
-                "/sayhi",
-                content=json.dumps({"name0": "Aber"}).encode("utf8"),
-                headers={"content-type": "", "serializer": "json"},
-            )
-        ).status_code == 422
         assert (
             await client.post(
                 "/sayhi",
@@ -168,7 +153,7 @@ def test_wsgi_openapi():
         return None
 
     @rpc.register
-    def sayhi(name: str = "Aber") -> str:
+    def sayhi(name: str) -> str:
         """
         say hi with name
         """
@@ -199,6 +184,14 @@ def test_wsgi_openapi():
         assert client.get("/openapi-docs").status_code == 200
         assert client.get("/get-openapi-docs").status_code == 200
 
+        assert (
+            client.post(
+                "/sayhi",
+                content=json.dumps({"name0": "Aber"}).encode("utf8"),
+                headers={"content-type": "", "serializer": "json"},
+            )
+        ).status_code == 422
+
 
 @pytest.mark.skipif("pydantic" not in sys.modules, reason="Missing pydantic")
 @pytest.mark.asyncio
@@ -213,7 +206,7 @@ async def test_asgi_openapi():
         return None
 
     @rpc.register
-    async def sayhi(name: str = "Aber") -> str:
+    async def sayhi(name: str) -> str:
         """
         say hi with name
         """
@@ -237,6 +230,14 @@ async def test_asgi_openapi():
     async with httpx.AsyncClient(app=rpc, base_url="http://testServer/") as client:
         assert (await client.get("/openapi-docs")).status_code == 200
         assert (await client.get("/get-openapi-docs")).status_code == 200
+
+        assert (
+            await client.post(
+                "/sayhi",
+                content=json.dumps({"name0": "Aber"}).encode("utf8"),
+                headers={"content-type": "", "serializer": "json"},
+            )
+        ).status_code == 422
 
 
 DEFAULT_PARAMETERS = [
@@ -303,11 +304,11 @@ OPENAPI_DOCS = {
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "default": "Aber",
                                         "title": "Name",
                                         "type": "string",
                                     }
                                 },
+                                "required": ["name"],
                             }
                         }
                         for serializer_type in SERIALIZER_TYPES
