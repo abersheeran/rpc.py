@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import functools
 import inspect
 import typing
 import warnings
 
 __all__ = [
-    "BaseModel",
     "create_model",
     "validate_arguments",
     "set_type_model",
@@ -51,7 +52,8 @@ except ImportError:
         Just for import
         """
 
-    BaseModel = type("BaseModel", (), {})  # type: ignore
+    if typing.TYPE_CHECKING:
+        from pydantic import BaseModel
 
 
 def set_type_model(func: Callable) -> Callable:

@@ -6,7 +6,8 @@ import httpx
 import pytest
 
 from rpcpy import RPC
-from rpcpy.client import Client
+from rpcpy.client import Client, ServerSentEventsParser
+from rpcpy.exceptions import RemoteCallError
 
 
 @pytest.fixture
@@ -26,6 +27,15 @@ def wsgi_app():
         for i in range(max_num):
             time.sleep(1)
             yield i
+
+    @app.register
+    def exception() -> str:
+        raise ValueError("Message")
+
+    @app.register
+    def exception_in_g() -> Generator[str, None, None]:
+        yield "Message"
+        raise TypeError("Message")
 
     return app
 
@@ -47,6 +57,15 @@ def asgi_app():
         for i in range(max_num):
             await asyncio.sleep(1)
             yield i
+
+    @app.register
+    async def exception() -> str:
+        raise ValueError("Message")
+
+    @app.register
+    async def exception_in_g() -> AsyncGenerator[str, None]:
+        yield "Message"
+        raise TypeError("Message")
 
     return app
 
@@ -94,6 +113,21 @@ def test_sync_client(sync_client):
         assert index == i
         index += 1
 
+    @sync_client.remote_call
+    def exception() -> str:
+        ...
+
+    with pytest.raises(RemoteCallError, match="ValueError: Message"):
+        exception()
+
+    @sync_client.remote_call
+    def exception_in_g() -> Generator[str, None, None]:
+        yield  # type: ignore
+
+    with pytest.raises(RemoteCallError, match="TypeError: Message"):
+        for msg in exception_in_g():
+            assert msg == "Message"
+
 
 @pytest.mark.asyncio
 async def test_async_client(async_client):
@@ -120,6 +154,21 @@ async def test_async_client(async_client):
     async for i in yield_data(5):
         assert index == i
         index += 1
+
+    @async_client.remote_call
+    async def exception() -> str:
+        ...
+
+    with pytest.raises(RemoteCallError, match="ValueError: Message"):
+        await exception()
+
+    @async_client.remote_call
+    async def exception_in_g() -> AsyncGenerator[str, None]:
+        yield  # type: ignore
+
+    with pytest.raises(RemoteCallError, match="TypeError: Message"):
+        async for msg in exception_in_g():
+            assert msg == "Message"
 
 
 def test_none(sync_client):
@@ -151,3 +200,29 @@ def test_invalid_client():
         match="The parameter `client` must be an httpx.Client or httpx.AsyncClient object.",
     ):
         Client(0)
+
+
+def test_sse_parser():
+    parser = ServerSentEventsParser()
+
+    parser.feed("data: hello\n")
+    assert parser.feed("\n") == {"data": "hello"}
+
+    parser.feed("data: hello\n")
+    parser.feed("data: world\n")
+    assert parser.feed("\n") == {"data": "hello\nworld"}
+
+    parser.feed(": ping\n")
+    assert parser.feed("\n") == {}
+
+    parser.feed("retry: 1\n")
+    assert parser.feed("\n") == {"retry": 1}
+
+    parser.feed("retry: p1\n")
+    assert parser.feed("\n") == {}
+
+    parser.feed("undefined")
+    assert parser.feed("\n") == {}
+
+    parser.feed("event")
+    assert parser.feed("\n") == {"event": ""}

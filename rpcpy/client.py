@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import functools
 import inspect
 import typing
@@ -5,8 +7,12 @@ from base64 import b64decode
 
 import httpx
 
+from rpcpy.exceptions import RemoteCallError
 from rpcpy.openapi import validate_arguments
 from rpcpy.serializers import BaseSerializer, JSONSerializer, get_serializer
+
+if typing.TYPE_CHECKING:
+    from baize.typing import ServerSentEvent
 
 __all__ = ["Client"]
 
@@ -45,7 +51,7 @@ class Client(metaclass=ClientMeta):
     def remote_call(self, func: Callable) -> Callable:
         return func
 
-    def _get_url(self, func: Callable) -> str:
+    def _get_url(self, func: typing.Callable) -> str:
         return self.base_url + func.__name__
 
     def _get_content(
@@ -88,7 +94,11 @@ class AsyncClient(Client):
                     },
                 )
                 resp.raise_for_status()
-                return get_serializer(resp.headers).decode(resp.content)
+                content = get_serializer(resp.headers).decode(resp.content)
+                if resp.headers.get("callback-status") == "exception":
+                    raise RemoteCallError(content)
+                else:
+                    return content
 
         else:
 
@@ -106,13 +116,23 @@ class AsyncClient(Client):
                     },
                 ) as resp:
                     resp.raise_for_status()
+                    sse_parser = ServerSentEventsParser()
+                    serializer = get_serializer(resp.headers)
                     async for line in resp.aiter_lines():
-                        if not line.startswith("data:"):
+                        event = sse_parser.feed(line)
+                        if not event:
                             continue
-                        data = line.split(":", maxsplit=1)[1]
-                        yield get_serializer(resp.headers).decode(
-                            b64decode(data.encode("ascii"))
-                        )
+
+                        if event["event"] == "yield":
+                            yield serializer.decode(
+                                b64decode(event["data"].encode("ascii"))
+                            )
+                        elif event["event"] == "exception":
+                            raise RemoteCallError(
+                                serializer.decode(b64decode(event["data"].encode("ascii")))
+                            )
+                        else:
+                            raise RuntimeError(f"Unknown event type: {event['event']}")
 
         return typing.cast(Callable, wrapper)
 
@@ -145,7 +165,11 @@ class SyncClient(Client):
                     },
                 )
                 resp.raise_for_status()
-                return get_serializer(resp.headers).decode(resp.content)
+                content = get_serializer(resp.headers).decode(resp.content)
+                if resp.headers.get("callback-status") == "exception":
+                    raise RemoteCallError(content)
+                else:
+                    return content
 
         else:
 
@@ -163,12 +187,57 @@ class SyncClient(Client):
                     },
                 ) as resp:
                     resp.raise_for_status()
+                    sse_parser = ServerSentEventsParser()
+                    serializer = get_serializer(resp.headers)
                     for line in resp.iter_lines():
-                        if not line.startswith("data:"):
+                        event = sse_parser.feed(line)
+                        if not event:
                             continue
-                        data = line.split(":", maxsplit=1)[1]
-                        yield get_serializer(resp.headers).decode(
-                            b64decode(data.encode("ascii"))
-                        )
+
+                        if event["event"] == "yield":
+                            yield serializer.decode(
+                                b64decode(event["data"].encode("ascii"))
+                            )
+                        elif event["event"] == "exception":
+                            raise RemoteCallError(
+                                serializer.decode(b64decode(event["data"].encode("ascii")))
+                            )
+                        else:
+                            raise RuntimeError(f"Unknown event type: {event['event']}")
 
         return typing.cast(Callable, wrapper)
+
+
+class ServerSentEventsParser:
+    def __init__(self) -> None:
+        self.message: ServerSentEvent = {}
+
+    def feed(self, line: str) -> ServerSentEvent | None:
+        if line == "\n":  # event split line
+            event = self.message
+            self.message = {}
+            return event
+
+        if line[0] == ":":  # ignore comment
+            return None
+
+        try:
+            key, value = map(str.strip, line.split(":", maxsplit=1))
+        except ValueError:
+            key = line.strip()
+            value = ""
+
+        if key not in ("data", "event", "id", "retry"):  # ignore undefined key
+            return None
+
+        if key == "data" and key in self.message:
+            self.message["data"] = f'{self.message["data"]}\n{value}'
+        elif key == "retry":
+            try:
+                self.message["retry"] = int(value)
+            except ValueError:
+                pass  # ignore non-integer retry value
+        else:
+            self.message[key] = value  # type: ignore[literal-required]
+
+        return None

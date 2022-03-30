@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import inspect
 import json
@@ -28,7 +30,7 @@ from baize.wsgi import PlainTextResponse as WsgiResponse
 from baize.wsgi import Request as WsgiRequest
 from baize.wsgi import SendEventResponse as WsgiEventResponse
 
-from rpcpy.exceptions import SerializerNotFound
+from rpcpy.exceptions import CallbackError, SerializerNotFound
 from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
 from rpcpy.openapi import (
     ValidationError,
@@ -89,7 +91,7 @@ class RPC(metaclass=RPCMeta):
         return func
 
     def get_openapi_docs(self) -> dict:
-        openapi: dict = {
+        openapi: typing.Dict[str, typing.Any] = {
             "openapi": "3.0.0",
             "info": copy.deepcopy(self.openapi) or {},
             "paths": {},
@@ -197,20 +199,16 @@ class RPC(metaclass=RPCMeta):
         return AsgiResponse if isinstance(request, AsgiRequest) else WsgiResponse
 
     @typing.overload
-    def preprocess(self, request: WsgiRequest) -> typing.Optional[WsgiResponse]:
+    def respond_openapi(self, request: WsgiRequest) -> WsgiResponse | None:
         pass
 
     @typing.overload
-    def preprocess(self, request: AsgiRequest) -> typing.Optional[AsgiResponse]:
+    def respond_openapi(self, request: AsgiRequest) -> AsgiResponse | None:
         pass
 
-    def preprocess(self, request):
-        """
-        Preprocess request
-        """
+    def respond_openapi(self, request):
         response_class = self.return_response_class(request)
 
-        # try return openapi
         if self.openapi is not None and request.method == "GET":
             if request.url.path[len(self.prefix) :] == "openapi-docs":
                 return response_class(OPENAPI_TEMPLATE, media_type="text/html")
@@ -220,19 +218,59 @@ class RPC(metaclass=RPCMeta):
                     media_type="application/json",
                 )
 
+        return None
+
+    def preprocess(
+        self, request: WsgiRequest | AsgiRequest
+    ) -> typing.Tuple[BaseSerializer, typing.Callable]:
+        """
+        Preprocess request
+        """
         # check request method
         if request.method != "POST":
-            return response_class(b"", status_code=405)
+            raise CallbackError(content="", status_code=405)
 
         # check serializer
         try:
-            get_serializer(request.headers)
+            serializer = get_serializer(request.headers)
         except SerializerNotFound as exception:
-            return response_class(str(exception), status_code=415)
+            raise CallbackError(content=str(exception), status_code=415)
 
         # check callback
-        if request.url.path[len(self.prefix) :] not in self.callbacks:
-            return response_class(b"", status_code=404)
+        callback = self.callbacks.get(request.url.path[len(self.prefix) :], None)
+        if callback is None:
+            raise CallbackError(content="", status_code=404)
+
+        return serializer, callback
+
+    def preprocess_body(
+        self, serializer: BaseSerializer, callback: typing.Callable, body: bytes
+    ) -> typing.Dict[str, typing.Any]:
+        """
+        Preprocess request body
+        """
+        if not body:
+            data = {}
+        else:
+            data = serializer.decode(body)
+
+        if hasattr(callback, "__body_model__"):
+            try:
+                model = getattr(callback, "__body_model__")(**data)
+            except ValidationError as exception:
+                raise CallbackError(
+                    status_code=422,
+                    headers={"content-type": "application/json"},
+                    content=exception.json(),
+                )
+            data = model.dict()
+
+        return data
+
+    def format_exception(self, exception: Exception) -> bytes:
+        return self.response_serializer.encode(
+            f"{exception.__class__.__qualname__}: {exception}"
+        )
 
 
 class WsgiRPC(RPC):
@@ -244,48 +282,68 @@ class WsgiRPC(RPC):
     def create_generator(
         self, generator: typing.Generator
     ) -> typing.Generator[ServerSentEvent, None, None]:
-        for data in generator:
+        try:
+            for data in generator:
+                yield {
+                    "event": "yield",
+                    "data": b64encode(self.response_serializer.encode(data)).decode(
+                        "ascii"
+                    ),
+                }
+        except Exception as exception:
             yield {
-                "data": b64encode(self.response_serializer.encode(data)).decode("ascii")
+                "event": "exception",
+                "data": b64encode(self.format_exception(exception)).decode("ascii"),
             }
 
-    def on_call(self, request: WsgiRequest) -> WSGIApp:
-        body = request.body
-        if not body:
-            data = {}
-        else:
-            data = get_serializer(request.headers).decode(body)
-
-        callback = self.callbacks[request.url.path[len(self.prefix) :]]
-        if hasattr(callback, "__body_model__"):
-            try:
-                model = getattr(callback, "__body_model__")(**data)
-            except ValidationError as error:
-                return WsgiResponse(
-                    error.json(), status_code=422, media_type="application/json"
-                )
-            result = callback(**model.dict())
-        else:
+    def on_call(
+        self,
+        callback: typing.Callable[..., typing.Any],
+        data: typing.Dict[str, typing.Any],
+    ) -> WsgiResponse | WsgiEventResponse:
+        response: WsgiResponse | WsgiEventResponse
+        try:
             result = callback(**data)
-
-        response: typing.Union[WsgiEventResponse, WsgiResponse]
-        if inspect.isgenerator(result):
-            response = WsgiEventResponse(
-                self.create_generator(result), headers={"serializer-base": "base64"}
+        except Exception as exception:
+            message = self.format_exception(exception)
+            response = WsgiResponse(
+                message,
+                headers={
+                    "content-type": self.response_serializer.content_type,
+                    "callback-status": "exception",
+                },
             )
         else:
-            response = WsgiResponse(
-                self.response_serializer.encode(result),
-                headers={"content-type": self.response_serializer.content_type},
-            )
-        response.headers["serializer"] = self.response_serializer.name
+            if inspect.isgenerator(result):
+                response = WsgiEventResponse(
+                    self.create_generator(result), headers={"serializer-base": "base64"}
+                )
+            else:
+                response = WsgiResponse(
+                    self.response_serializer.encode(result),
+                    headers={"content-type": self.response_serializer.content_type},
+                )
+
         return response
 
     def __call__(
         self, environ: Environ, start_response: StartResponse
     ) -> typing.Iterable[bytes]:
         request = WsgiRequest(environ)
-        response = self.preprocess(request) or self.on_call(request)
+        response: WSGIApp | None = self.respond_openapi(request)
+        if response is None:
+            try:
+                serializer, callback = self.preprocess(request)
+                data = self.preprocess_body(serializer, callback, request.body)
+            except CallbackError as exception:
+                response = WsgiResponse(
+                    content=exception.content or b"",
+                    status_code=exception.status_code,
+                    headers=exception.headers,
+                )
+            else:
+                response = self.on_call(callback, data)
+                response.headers["serializer"] = self.response_serializer.name
         return response(environ, start_response)
 
 
@@ -298,44 +356,67 @@ class AsgiRPC(RPC):
     async def create_generator(
         self, generator: typing.AsyncGenerator
     ) -> typing.AsyncGenerator[ServerSentEvent, None]:
-        async for data in generator:
+        try:
+            async for data in generator:
+                yield {
+                    "event": "yield",
+                    "data": b64encode(self.response_serializer.encode(data)).decode(
+                        "ascii"
+                    ),
+                }
+        except Exception as exception:
             yield {
-                "data": b64encode(self.response_serializer.encode(data)).decode("ascii")
+                "event": "exception",
+                "data": b64encode(self.format_exception(exception)).decode("ascii"),
             }
 
-    async def on_call(self, request: AsgiRequest) -> ASGIApp:
-        body = await request.body
-        if not body:
-            data = {}
-        else:
-            data = get_serializer(request.headers).decode(body)
-
-        callback = self.callbacks[request.url.path[len(self.prefix) :]]
-        if hasattr(callback, "__body_model__"):
-            try:
-                model = getattr(callback, "__body_model__")(**data)
-            except ValidationError as error:
-                return AsgiResponse(
-                    error.json(), status_code=422, media_type="application/json"
-                )
-            result = callback(**model.dict())
-        else:
-            result = callback(**data)
-
-        response: typing.Union[AsgiEventResponse, AsgiResponse]
-        if inspect.isasyncgen(result):
-            response = AsgiEventResponse(
-                self.create_generator(result), headers={"serializer-base": "base64"}
-            )
-        else:
+    async def on_call(
+        self,
+        callback: typing.Callable[..., typing.Awaitable[typing.Any]],
+        data: typing.Dict[str, typing.Any],
+    ) -> AsgiResponse | AsgiEventResponse:
+        response: AsgiResponse | AsgiEventResponse
+        try:
+            if inspect.isasyncgenfunction(callback):
+                result = callback(**data)
+            else:
+                result = await callback(**data)
+        except Exception as exception:
+            message = self.format_exception(exception)
             response = AsgiResponse(
-                self.response_serializer.encode(await result),
-                headers={"content-type": self.response_serializer.content_type},
+                message,
+                headers={
+                    "content-type": self.response_serializer.content_type,
+                    "callback-status": "exception",
+                },
             )
-        response.headers["serializer"] = self.response_serializer.name
+        else:
+            if inspect.isasyncgen(result):
+                response = AsgiEventResponse(
+                    self.create_generator(result), headers={"serializer-base": "base64"}
+                )
+            else:
+                response = AsgiResponse(
+                    self.response_serializer.encode(result),
+                    headers={"content-type": self.response_serializer.content_type},
+                )
+
         return response
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         request = AsgiRequest(scope, receive, send)
-        response = self.preprocess(request) or await self.on_call(request)
+        response: ASGIApp | None = self.respond_openapi(request)
+        if response is None:
+            try:
+                serializer, callback = self.preprocess(request)
+                data = self.preprocess_body(serializer, callback, await request.body)
+            except CallbackError as exception:
+                response = AsgiResponse(
+                    content=exception.content or b"",
+                    status_code=exception.status_code,
+                    headers=exception.headers,
+                )
+            else:
+                response = await self.on_call(callback, data)
+                response.headers["serializer"] = self.response_serializer.name
         return await response(scope, receive, send)
