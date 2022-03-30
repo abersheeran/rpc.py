@@ -214,3 +214,15 @@ def test_sse_parser():
 
     parser.feed(": ping\n")
     assert parser.feed("\n") == {}
+
+    parser.feed("retry: 1\n")
+    assert parser.feed("\n") == {"retry": 1}
+
+    parser.feed("retry: p1\n")
+    assert parser.feed("\n") == {}
+
+    parser.feed("undefined")
+    assert parser.feed("\n") == {}
+
+    parser.feed("event")
+    assert parser.feed("\n") == {"event": ""}

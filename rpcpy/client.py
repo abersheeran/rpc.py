@@ -221,9 +221,23 @@ class ServerSentEventsParser:
         if line[0] == ":":  # ignore comment
             return None
 
-        key, value = map(str.strip, line.split(":", maxsplit=1))
+        try:
+            key, value = map(str.strip, line.split(":", maxsplit=1))
+        except ValueError:
+            key = line.strip()
+            value = ""
+
+        if key not in ("data", "event", "id", "retry"):  # ignore undefined key
+            return None
+
         if key == "data" and key in self.message:
-            self.message[key] = f"{self.message[key]}\n{value}"  # type: ignore
+            self.message["data"] = f'{self.message["data"]}\n{value}'
+        elif key == "retry":
+            try:
+                self.message["retry"] = int(value)
+            except ValueError:
+                pass  # ignore non-integer retry value
         else:
-            self.message[key] = value  # type: ignore
+            self.message[key] = value  # type: ignore[literal-required]
+
         return None
