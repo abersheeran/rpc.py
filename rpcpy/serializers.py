@@ -108,16 +108,21 @@ class CBORSerializer(BaseSerializer):
         return cbor.loads(data)
 
 
+# Since the release of pickle to the external network may lead to
+# arbitrary code execution vulnerabilities, this serialization
+# method is not enabled by default. It is recommended to turn it on
+# when there is physical isolation from the outside.
+
 SERIALIZER_NAMES = {
     JSONSerializer.name: JSONSerializer(),
-    PickleSerializer.name: PickleSerializer(),
+    # PickleSerializer.name: PickleSerializer(),
     MsgpackSerializer.name: MsgpackSerializer(),
     CBORSerializer.name: CBORSerializer(),
 }
 
 SERIALIZER_TYPES = {
     JSONSerializer.content_type: JSONSerializer(),
-    PickleSerializer.content_type: PickleSerializer(),
+    # PickleSerializer.content_type: PickleSerializer(),
     MsgpackSerializer.content_type: MsgpackSerializer(),
     CBORSerializer.content_type: CBORSerializer(),
 }
