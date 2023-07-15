@@ -236,10 +236,10 @@ If you need to deploy the rpc.py server under `example.com/sub-route/*`, you nee
 
 ### Serialization
 
-Currently supports three serializers, JSON, Pickle, Msgpack and CBOR. JSON is used by default. You can override the default `JSONSerializer` with parameters.
+Currently supports three serializers, JSON, Msgpack and CBOR. JSON is used by default. You can override the default `JSONSerializer` with parameters.
 
 ```python
-from rpcpy.serializers import PickleSerializer, MsgpackSerializer, CBORSerializer
+from rpcpy.serializers import MsgpackSerializer, CBORSerializer
 
 RPC(
     ...,
@@ -248,7 +248,7 @@ RPC(
 # Or
 Client(
     ...,
-    request_serializer=PickleSerializer(),
+    request_serializer=CBORSerializer(),
 )
 ```
 
