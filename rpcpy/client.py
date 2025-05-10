@@ -213,7 +213,7 @@ class ServerSentEventsParser:
         self.message: ServerSentEvent = {}
 
     def feed(self, line: str) -> ServerSentEvent | None:
-        if line == "\n":  # event split line
+        if not line or line == "\n":  # event split line
             event = self.message
             self.message = {}
             return event

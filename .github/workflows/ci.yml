@@ -22,7 +22,7 @@ jobs:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         os: [windows-latest, ubuntu-latest, macos-latest]
     env:
       OS: ${{ matrix.os }}
@@ -81,7 +81,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: ["3.12"]
         os: [ubuntu-latest]
 
     steps:
@@ -102,3 +102,4 @@ jobs:
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+

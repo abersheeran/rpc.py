@@ -1,5 +1,4 @@
 import asyncio
-import time
 from typing import AsyncGenerator, Generator
 
 import httpx
@@ -25,7 +24,6 @@ def wsgi_app():
     @app.register
     def yield_data(max_num: int) -> Generator[int, None, None]:
         for i in range(max_num):
-            time.sleep(1)
             yield i
 
     @app.register
@@ -55,7 +53,6 @@ def asgi_app():
     @app.register
     async def yield_data(max_num: int) -> AsyncGenerator[int, None]:
         for i in range(max_num):
-            await asyncio.sleep(1)
             yield i
 
     @app.register

@@ -17,8 +17,11 @@ __all__ = [
 Callable = typing.TypeVar("Callable", bound=typing.Callable)
 
 try:
+    from pydantic import VERSION as PYDANTIC_VERSION
     from pydantic import BaseModel, ValidationError, create_model
     from pydantic import validate_arguments as pydantic_validate_arguments
+
+    IS_PYDANTIC_V2 = int(PYDANTIC_VERSION.split(".")[0]) >= 2
 
     # visit this issue
     # https://github.com/samuelcolvin/pydantic/issues/1205
@@ -41,6 +44,8 @@ try:
 
 except ImportError:
 
+    IS_PYDANTIC_V2 = False
+
     def create_model(*args, **kwargs):  # type: ignore
         raise NotImplementedError("Need install `pydantic` from pypi.")
 
@@ -53,7 +58,11 @@ except ImportError:
         """
 
     if typing.TYPE_CHECKING:
+        from pydantic import VERSION as PYDANTIC_VERSION
         from pydantic import BaseModel
+
+if IS_PYDANTIC_V2:
+    from pydantic import RootModel
 
 
 def set_type_model(func: Callable) -> Callable:
@@ -109,6 +118,24 @@ def parse_typed_dict(typed_dict) -> typing.Type[BaseModel]:
             annotations[name] = (field, default_value)
 
     return create_model(typed_dict.__name__, **annotations)  # type: ignore
+
+
+def create_root_model(model_name: str, return_annotation: type) -> typing.Type[BaseModel]:
+    """
+    Create a Pydantic model with a single root field for the return type.
+
+    This function handles both Pydantic v1 and v2 styles of model creation.
+    """
+    if IS_PYDANTIC_V2:
+        # Dynamically create a subclass of RootModel
+        return type(
+            model_name,
+            (RootModel,),
+            {"__annotations__": {"root": return_annotation}},
+        )
+    else:
+        # Pydantic v1 style using create_model with __root__
+        return create_model(model_name, __root__=(return_annotation, ...))
 
 
 TEMPLATE = """<!DOCTYPE html>

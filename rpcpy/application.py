@@ -35,6 +35,7 @@ from rpcpy.openapi import TEMPLATE as OPENAPI_TEMPLATE
 from rpcpy.openapi import (
     ValidationError,
     create_model,
+    create_root_model,
     is_typed_dict_type,
     parse_typed_dict,
     set_type_model,
@@ -162,9 +163,9 @@ class RPC(metaclass=RPCMeta):
                 elif return_annotation is None:
                     resp_model = create_model(callback.__name__ + "-return")
                 else:
-                    resp_model = create_model(
-                        callback.__name__ + "-return",
-                        __root__=(return_annotation, ...),
+                    resp_model = create_root_model(
+                        model_name=callback.__name__ + "-return",
+                        return_annotation=return_annotation,
                     )
                 _schema = copy.deepcopy(resp_model.schema())
                 definitions.update(_schema.pop("definitions", {}))
